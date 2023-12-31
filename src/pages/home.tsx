@@ -6,11 +6,6 @@ import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateActi
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import {Cloud, File, Filter, Loader2 } from 'lucide-react'
-import type {
-  ActualWorkout,
-  ActualExercise,
-  exerciseSet,
-} from "@prisma/client";
 import { v4 } from "uuid";
 import { NavBar } from "~/pages/components/navbar";
 import PageLayout from "~/pages/components/pagelayout";
