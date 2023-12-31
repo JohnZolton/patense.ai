@@ -291,6 +291,25 @@ interface SpecDisplayProps{
 function SpecDisplay({specification}: SpecDisplayProps){
   if (specification === undefined){return(null)}
 
+  const [loadedSpec, setLoadedSpec] = useState<{ fileName: string; fileText: string }>();
+  useEffect(() => {
+    const loadSpecification = async () => {
+          try {
+            const result = await handlePDFLoaded(specification);
+            console.log("loaded: ", result)
+            return result;
+          } catch (error) {
+            console.error('Error loading PDF:', error);
+            return null;
+          }
+    };
+
+    loadSpecification();
+  }, [specification]);
+  useEffect(()=>{
+    console.log(loadedSpec)
+  },[loadedSpec])
+
   const handlePDFLoaded = async (file: File) => {
     try {
       const buffer = await file.arrayBuffer();
@@ -332,8 +351,33 @@ interface ReferenceDisplayProps{
 }
 function ReferenceDisplay({refList}:ReferenceDisplayProps){
   if (refList.length ===0){return(null)}
-  const handlePDFLoaded = async (file: File) => {
 
+  const [loadedReferences, setLoadedReferences] = useState<Array<{ fileName: string; fileText: string }>>([]);
+  useEffect(() => {
+    const loadReferences = async () => {
+      const loadedRefs = await Promise.all(
+        refList.map(async (refItem) => {
+          try {
+            const result = await handlePDFLoaded(refItem);
+            console.log("loaded: ", result)
+            return result;
+          } catch (error) {
+            console.error('Error loading PDF:', error);
+            return null;
+          }
+        })
+      );
+
+      setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileText: string }>);
+    };
+
+    loadReferences();
+  }, [refList]);
+  useEffect(()=>{
+    console.log(loadedReferences)
+  },[loadedReferences])
+  
+  const handlePDFLoaded = async (file: File) => {
     try {
       const buffer = await file.arrayBuffer();
       const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
