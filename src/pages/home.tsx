@@ -13,6 +13,8 @@ import LoadingSpinner from "./components/loadingspinner";
 import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
 import Dropzone from "react-dropzone";
+import { text } from "stream/consumers";
+
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -69,6 +71,16 @@ const Home: NextPage = () => {
 
 export default Home;
 
+interface TextItem {
+  str: string;
+  dir: string;
+  transform: any[]; // Adjust this to a more specific type if possible
+  width: number;
+  height: number;
+  fontName: string;
+  hasEOL: boolean;
+}
+
 
 interface SpecDisplayProps{
   specification: File | undefined;
@@ -110,9 +122,9 @@ function SpecDisplay({specification}: SpecDisplayProps){
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         const page = await pdf.getPage(pageNumber);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join('');
+        const pageText:string = textContent.items.map((item) => (item as TextItem).str).join('');
         //const pageText = textContent.items.map((item) => item.str).join('');
-        fullText += pageText + '\n'; // Add a newline between pages if you want
+        fullText += pageText + '\n'; 
       }
 
       return({fileName: file.name, fileText: fullText})
@@ -179,7 +191,7 @@ function ReferenceDisplay({refList}:ReferenceDisplayProps){
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         const page = await pdf.getPage(pageNumber);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join('');
+        const pageText:string = textContent.items.map((item) => (item as TextItem).str).join('');
         //const pageText = textContent.items.map((item) => item.str).join('');
         fullText += pageText + '\n'; // Add a newline between pages if you want
       }
