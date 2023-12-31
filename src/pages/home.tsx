@@ -53,7 +53,7 @@ const Home: NextPage = () => {
           <SpecDropzone setSpecFile={setSpecFile} />
           <SpecDisplay specification={specFile} />
           <ReferenceDropZone setRefFile={setRefFiles}/>
-          <ReferenceDisplay refList={refFiles} />
+          <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} />
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}
@@ -150,8 +150,9 @@ function SpecDisplay({specification}: SpecDisplayProps){
 }
 interface ReferenceDisplayProps{
   refList: File[];
+  setRefList: Dispatch<SetStateAction<File[]>>
 }
-function ReferenceDisplay({refList}:ReferenceDisplayProps){
+function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
   const [loadedReferences, setLoadedReferences] = useState<Array<{ fileName: string; fileText: string }>>([]);
 
   useEffect(() => {
@@ -192,13 +193,16 @@ function ReferenceDisplay({refList}:ReferenceDisplayProps){
         const page = await pdf.getPage(pageNumber);
         const textContent = await page.getTextContent();
         const pageText:string = textContent.items.map((item) => (item as TextItem).str).join('');
-        //const pageText = textContent.items.map((item) => item.str).join('');
         fullText += pageText + '\n'; // Add a newline between pages if you want
       }
 
       return({fileName: file.name, fileText: fullText})
     } catch (error) {
       console.error('Error loading PDF:', error);
+      // put a toast thing here
+      const filteredList = refList.filter(currentFile=>file!==currentFile)
+      setRefList(filteredList)
+      
     }
   };
   if (refList.length ===0){return(null)}
