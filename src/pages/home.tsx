@@ -5,7 +5,7 @@ import { api } from "~/utils/api";
 import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import {Cloud, File, Loader2 } from 'lucide-react'
+import {Cloud, File, Filter, Loader2 } from 'lucide-react'
 import type {
   ActualWorkout,
   ActualExercise,
@@ -22,8 +22,16 @@ import Dropzone from "react-dropzone";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 const Home: NextPage = () => {
-  const [specification, setSpecification] = useState<string>("");
+  const [specification, setSpecification] = useState<{fileName:string; fileContent:string}>();
   const [references, setReferences] = useState<{fileName:string; fileContent:string}[]>([]);
+  const [refFiles, setRefFiles] = useState<File[]>([]);
+  const [specFile, setSpecFile] = useState<File>();
+  useEffect(() => {
+    console.log('refFiles changed:', refFiles);
+  }, [refFiles]);
+  useEffect(() => {
+    console.log('specfiles changed:', specFile);
+  }, [specFile]);
   
   useEffect(()=>{
     console.log("Spec: ", specification)
@@ -31,6 +39,7 @@ const Home: NextPage = () => {
   useEffect(()=>{
     console.log("References: ", references)
   }, [references])
+
   
   return (
     <>
@@ -43,8 +52,10 @@ const Home: NextPage = () => {
         <NavBar />
         <div className="">
           <SignedIn>
-          <SpecDropzone />
-          <ReferenceDropZone />
+          <SpecDropzone setSpecFile={setSpecFile} />
+          <SpecDisplay specification={specFile} />
+          <ReferenceDropZone setRefFile={setRefFiles}/>
+          <ReferenceDisplay refList={refFiles} />
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}
@@ -253,7 +264,6 @@ const ReferenceSection: React.FC<RefSectionProps> = ({
       onDrop={handleDrop}
       className={`border ${dragOver ? 'border-blue-500' : 'border-gray-300'} p-6 text-center`}
     >
-      <ReferenceDisplay refList={references}/>
       <div
         style={{ width: '100%', height: '100%' }}
         onClick={() => inputRef.current?.click()}
@@ -275,32 +285,107 @@ const ReferenceSection: React.FC<RefSectionProps> = ({
   );
 };
 
+interface SpecDisplayProps{
+  specification: File | undefined;
+}
+function SpecDisplay({specification}: SpecDisplayProps){
+  if (specification === undefined){return(null)}
+
+  const handlePDFLoaded = async (file: File) => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
+
+      const loadingTask = pdfjs.getDocument({ url: dataUrl });
+      const pdf = await loadingTask.promise;
+
+      let fullText = '';
+
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item) => item.str).join('');
+        fullText += pageText + '\n'; // Add a newline between pages if you want
+      }
+
+      return({fileName: file.name, fileText: fullText})
+    } catch (error) {
+      console.error('Error loading PDF:', error);
+    }
+  };
+
+  return(
+    <div className="my-10 flex flex-col items-center">
+      <div className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200 my-3'>
+          <div className='px-3 py-2 h-full grid place-items-center'>
+            <File className='h-4 w-4 text-blue-500' />
+          </div>
+          <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
+            {specification.name}
+          </div>
+      </div>
+    </div>
+    )
+}
 interface ReferenceDisplayProps{
-  refList: { fileName: string; fileContent: string }[];
+  refList: File[];
 }
 function ReferenceDisplay({refList}:ReferenceDisplayProps){
-  if (refList.length ===0){return(<div>Load References</div>)}
+  if (refList.length ===0){return(null)}
+  const handlePDFLoaded = async (file: File) => {
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
+
+      const loadingTask = pdfjs.getDocument({ url: dataUrl });
+      const pdf = await loadingTask.promise;
+
+      let fullText = '';
+
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item) => item.str).join('');
+        fullText += pageText + '\n'; // Add a newline between pages if you want
+      }
+
+      return({fileName: file.name, fileText: fullText})
+    } catch (error) {
+      console.error('Error loading PDF:', error);
+    }
+  };
+
   return(
-    <div className="my-10">
-      {refList.map((refItem)=>(
-        <div key={refItem.fileName} className="my-5">
-          <div>{refItem.fileName}</div>
-          <div>{refItem.fileContent.slice(0,40)}...</div>
+    <div className="my-10 flex flex-col items-center">
+      {refList.map((refItem, index)=>(
+      <div key={index} className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200 my-3'>
+        <React.Fragment >
+          <div className='px-3 py-2 h-full grid place-items-center'>
+            <File className='h-4 w-4 text-blue-500' />
           </div>
+          <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
+            {refItem.name}
+          </div>
+        </React.Fragment>
+      </div>
       ))}
     </div>
     )
 }
 
-function ReferenceDropZone(){
-  const [files, setFiles] = useState<File[]>([]);
+interface ReferenceDropZoneProps {
+  setRefFile: Dispatch<SetStateAction<File[]>>
+}
+function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
   return(
+    <div>
+
     <Dropzone 
       multiple={true}
       onDrop={(acceptedFile)=>{
-        console.log(acceptedFile)
-        setFiles((prevFiles)=>[...prevFiles, ...acceptedFile])
-        console.log(files)
+        console.log("new file: ",acceptedFile)
+        setRefFile((prevFiles)=>[...prevFiles, ...acceptedFile])
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
@@ -323,33 +408,26 @@ function ReferenceDropZone(){
                 id='dropzone-file'
                 className='hidden'
               />
-            {acceptedFiles && acceptedFiles[0] ? (
-                <div className='max-w-xs bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200'>
-                {acceptedFiles.map((file, index)=>(
-                  <React.Fragment key={index}>
-                    <div className='px-3 py-2 h-full grid place-items-center'>
-                      <File className='h-4 w-4 text-blue-500' />
-                    </div>
-                    <div className='px-3 py-2 h-full text-sm truncate'>
-                      {file.name}
-                    </div>
-                  </React.Fragment>
-                ))}
-                </div>
-              ) : null}
           </label>
         </div>
       </div>
     )}
     </Dropzone>
+    </div>
   )
 }
-function SpecDropzone(){
+interface SpecDropzoneProps {
+  setSpecFile: Dispatch<SetStateAction<File>>
+}
+function SpecDropzone({setSpecFile}: SpecDropzoneProps){
   return(
     <Dropzone 
       multiple={false}
       onDrop={(acceptedFile)=>{
         console.log(acceptedFile)
+        if (acceptedFile.length > 0){
+          setSpecFile(acceptedFile[0])
+        }
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
@@ -375,16 +453,6 @@ function SpecDropzone(){
                 id='dropzone-file'
                 className='hidden'
               />
-            {acceptedFiles && acceptedFiles[0] ? (
-                <div className='max-w-xs bg-gray-800 flex items-center rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200'>
-                  <div className='px-3 py-2 h-full grid place-items-center'>
-                    <File className='h-4 w-4 text-blue-500' />
-                  </div>
-                  <div className='px-3 py-2 h-full text-sm truncate'>
-                    {acceptedFiles[0].name}
-                  </div>
-                </div>
-              ) : null}
           </label>
         </div>
       </div>
