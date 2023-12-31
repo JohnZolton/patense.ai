@@ -5,7 +5,7 @@ import { api } from "~/utils/api";
 import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import {Cloud, File, Filter, Loader2 } from 'lucide-react'
+import {Cloud, File, Filter, Loader2, Trash2 } from 'lucide-react'
 import { v4 } from "uuid";
 import { NavBar } from "~/pages/components/navbar";
 import PageLayout from "~/pages/components/pagelayout";
@@ -202,10 +202,14 @@ function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
       // put a toast thing here
       const filteredList = refList.filter(currentFile=>file!==currentFile)
       setRefList(filteredList)
-      
     }
   };
   if (refList.length ===0){return(null)}
+  
+  function handleButtonClick(indexToRemove:number){
+    const updatedRefList = refList.filter((_, index) => index !== indexToRemove);
+    setRefList(updatedRefList)
+  }
 
   return(
     <div className="my-10 flex flex-col items-center">
@@ -215,8 +219,14 @@ function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
           <div className='px-3 py-2 h-full grid place-items-center'>
             <File className='h-4 w-4 text-blue-500' />
           </div>
+          <div className="flex flex-row justify-between w-full">
           <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
             {refItem.name}
+          </div>
+          <button onClick={()=>handleButtonClick(index)}>
+            <Trash2 />
+          </button>
+
           </div>
         </React.Fragment>
       </div>
