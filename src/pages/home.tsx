@@ -19,6 +19,7 @@ import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
 import Dropzone from "react-dropzone";
 
+
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 const Home: NextPage = () => {
@@ -74,227 +75,18 @@ const Home: NextPage = () => {
 export default Home;
 
 
-enum docType {
-  Spec = 'spec',
-  Reference = 'reference'
-}
-
-interface SpecParserProps {
-  specification: string, 
-  setSpecification: Dispatch<SetStateAction<string>>,
-}
-
-const SpecParser: React.FC<SpecParserProps> = ({ 
-  specification,
-  setSpecification,
- }) => {
-  const [dragOver, setDragOver] = useState(false);
-  const [filename, setFilename] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(false);
-
-    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-      const file = event.dataTransfer.files[0];
-      if (file.type.startsWith('application/pdf')) {
-        handlePDFLoaded(file);
-        setFilename(file.name);
-      }
-    }
-  };
-
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      if (file.type.startsWith('application/pdf')) {
-        handlePDFLoaded(file);
-        setFilename(file.name);
-      }
-    }
-  };
-  const handlePDFLoaded = async (file: File) => {
-    try {
-      const buffer = await file.arrayBuffer();
-      const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
-
-      const loadingTask = pdfjs.getDocument({ url: dataUrl });
-      const pdf = await loadingTask.promise;
-
-      let fullText = '';
-
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item) => item.str).join('');
-        fullText += pageText + '\n'; // Add a newline between pages if you want
-      }
-
-      setSpecification(fullText)
-    } catch (error) {
-      console.error('Error loading PDF:', error);
-    }
-  };
-
-  return (
-    <div
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={`border ${dragOver ? 'border-blue-500' : 'border-gray-300'} p-6 text-center`}
-    >
-      <div
-        style={{ width: '100%', height: '100%' }}
-        onClick={() => inputRef.current?.click()}
-        className="flex flex-row items-center justify-between"
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          onChange={handleInputChange}
-        />
-        {filename ? (
-          <p>{filename}</p>
-        ) : (
-          <div>Load Specification</div>
-        )}
-        <button
-          type="button"
-          className="mt-4 block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-        >
-          Select PDF file
-        </button>
-      </div>
-    </div>
-  );
-};
-
-
-
-
-interface RefSectionProps {
-  references: { fileName: string; fileContent: string }[];
-  setReferences: Dispatch<SetStateAction<{ fileName: string; fileContent: string }[]>>;
-}
-
-const ReferenceSection: React.FC<RefSectionProps> = ({ 
-  references,
-  setReferences,
- }) => {
-  const [dragOver, setDragOver] = useState(false);
-  const [filename, setFilename] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragOver(false);
-
-    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-      const file = event.dataTransfer.files[0];
-      if (file.type.startsWith('application/pdf')) {
-        handlePDFLoaded(file);
-        setFilename(file.name);
-      }
-    }
-  };
-
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      if (file.type.startsWith('application/pdf')) {
-        handlePDFLoaded(file);
-      }
-    }
-  };
-  const handlePDFLoaded = async (file: File) => {
-    try {
-      const buffer = await file.arrayBuffer();
-      const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
-
-      const loadingTask = pdfjs.getDocument({ url: dataUrl });
-      const pdf = await loadingTask.promise;
-
-      let fullText = '';
-
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item) => item.str).join('');
-        fullText += pageText + '\n'; // Add a newline between pages if you want
-      }
-
-      if (file.name !== null){
-        setReferences((prevRefs)=>{
-          const newRefs = [...prevRefs, { fileName: file.name, fileContent: fullText }];
-          return newRefs.length > 0 ? newRefs : [{ fileName: filename, fileContent: fullText }];
-        });
-      }     
-    } catch (error) {
-      console.error('Error loading PDF:', error);
-    }
-  };
-
-  return (
-    <div
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={`border ${dragOver ? 'border-blue-500' : 'border-gray-300'} p-6 text-center`}
-    >
-      <div
-        style={{ width: '100%', height: '100%' }}
-        onClick={() => inputRef.current?.click()}
-        className="flex flex-row items-center justify-between"
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          onChange={handleInputChange}
-        />
-        <button
-          type="button"
-          className="mt-4 block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-        >Add Reference</button>
-      </div>
-    </div>
-  );
-};
-
 interface SpecDisplayProps{
   specification: File | undefined;
 }
 function SpecDisplay({specification}: SpecDisplayProps){
-  if (specification === undefined){return(null)}
-
   const [loadedSpec, setLoadedSpec] = useState<{ fileName: string; fileText: string }>();
+
+
   useEffect(() => {
     const loadSpecification = async () => {
           try {
+            if (specification === undefined){return(null)}
+
             const result = await handlePDFLoaded(specification);
             console.log("loaded: ", result)
             return result;
@@ -304,7 +96,7 @@ function SpecDisplay({specification}: SpecDisplayProps){
           }
     };
 
-    loadSpecification();
+    void loadSpecification();
   }, [specification]);
   useEffect(()=>{
     console.log(loadedSpec)
@@ -323,7 +115,8 @@ function SpecDisplay({specification}: SpecDisplayProps){
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         const page = await pdf.getPage(pageNumber);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item) => item.str).join('');
+        const pageText = textContent.items.map((item: any) => item.str).join('');
+        //const pageText = textContent.items.map((item) => item.str).join('');
         fullText += pageText + '\n'; // Add a newline between pages if you want
       }
 
@@ -332,6 +125,8 @@ function SpecDisplay({specification}: SpecDisplayProps){
       console.error('Error loading PDF:', error);
     }
   };
+
+  if (specification === undefined){return(null)}
 
   return(
     <div className="my-10 flex flex-col items-center">
@@ -350,9 +145,8 @@ interface ReferenceDisplayProps{
   refList: File[];
 }
 function ReferenceDisplay({refList}:ReferenceDisplayProps){
-  if (refList.length ===0){return(null)}
-
   const [loadedReferences, setLoadedReferences] = useState<Array<{ fileName: string; fileText: string }>>([]);
+
   useEffect(() => {
     const loadReferences = async () => {
       const loadedRefs = await Promise.all(
@@ -371,7 +165,7 @@ function ReferenceDisplay({refList}:ReferenceDisplayProps){
       setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileText: string }>);
     };
 
-    loadReferences();
+    void loadReferences();
   }, [refList]);
   useEffect(()=>{
     console.log(loadedReferences)
@@ -390,7 +184,8 @@ function ReferenceDisplay({refList}:ReferenceDisplayProps){
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         const page = await pdf.getPage(pageNumber);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item) => item.str).join('');
+        const pageText = textContent.items.map((item: any) => item.str).join('');
+        //const pageText = textContent.items.map((item) => item.str).join('');
         fullText += pageText + '\n'; // Add a newline between pages if you want
       }
 
@@ -399,6 +194,7 @@ function ReferenceDisplay({refList}:ReferenceDisplayProps){
       console.error('Error loading PDF:', error);
     }
   };
+  if (refList.length ===0){return(null)}
 
   return(
     <div className="my-10 flex flex-col items-center">
@@ -461,7 +257,7 @@ function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
   )
 }
 interface SpecDropzoneProps {
-  setSpecFile: Dispatch<SetStateAction<File>>
+  setSpecFile: Dispatch<SetStateAction<File | undefined>>
 }
 function SpecDropzone({setSpecFile}: SpecDropzoneProps){
   return(
