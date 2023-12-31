@@ -5,7 +5,7 @@ import { api } from "~/utils/api";
 import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import {Cloud, File, Filter, Loader2, Trash2 } from 'lucide-react'
+import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check } from 'lucide-react'
 import { v4 } from "uuid";
 import { NavBar } from "~/pages/components/navbar";
 import PageLayout from "~/pages/components/pagelayout";
@@ -38,6 +38,15 @@ const Home: NextPage = () => {
     console.log("References: ", references)
   }, [references])
 
+  function handleButtonClick(){
+    console.log("Spec: ", specification)
+    console.log("References: ", references)
+    if (specification && references.length>0){
+      console.log('good to go')
+    } else {
+      console.log('Error, no refs')
+    }
+  }
   
   return (
     <>
@@ -51,9 +60,15 @@ const Home: NextPage = () => {
         <div className="">
           <SignedIn>
           <SpecDropzone setSpecFile={setSpecFile} />
-          <SpecDisplay specification={specFile} />
+          <SpecDisplay specification={specFile} setSpec={setSpecification} setSpecFile={setSpecFile}/>
           <ReferenceDropZone setRefFile={setRefFiles}/>
-          <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} />
+          <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
+          <div className="flex justify-center flex-row items-center ">
+          <button 
+            className="bg-gray-900 hover:bg-gray-800 py-4 px-5 border border-dashed"
+            onClick={handleButtonClick}
+            >Generate Report</button>
+          </div>
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}
@@ -84,10 +99,12 @@ interface TextItem {
 
 interface SpecDisplayProps{
   specification: File | undefined;
+  setSpec: Dispatch<SetStateAction<{fileName:string; fileContent:string}|undefined>>;
+  setSpecFile: React.Dispatch<React.SetStateAction<File | undefined>>
 }
-function SpecDisplay({specification}: SpecDisplayProps){
-  const [loadedSpec, setLoadedSpec] = useState<{ fileName: string; fileText: string }>();
-
+function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
+  const [loadedSpec, setLoadedSpec] = useState<{ fileName: string; fileContent: string }>();
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const loadSpecification = async () => {
@@ -96,6 +113,9 @@ function SpecDisplay({specification}: SpecDisplayProps){
 
             const result = await handlePDFLoaded(specification);
             console.log("loaded: ", result)
+            if (result !== undefined){
+              setSpec(result)
+            }
             return result;
           } catch (error) {
             console.error('Error loading PDF:', error);
@@ -104,7 +124,8 @@ function SpecDisplay({specification}: SpecDisplayProps){
     };
 
     void loadSpecification();
-  }, [specification]);
+    setIsLoading(true)
+  }, [specification, setSpec]);
   useEffect(()=>{
     console.log(loadedSpec)
   },[loadedSpec])
@@ -127,22 +148,35 @@ function SpecDisplay({specification}: SpecDisplayProps){
         fullText += pageText + '\n'; 
       }
 
-      return({fileName: file.name, fileText: fullText})
+      setIsLoading(false)
+      return({fileName: file.name, fileContent: fullText})
     } catch (error) {
       console.error('Error loading PDF:', error);
     }
   };
+  
+  function handleButtonClick(){
+    setSpecFile(undefined)
+    setSpec(undefined)
+  }
 
   if (specification === undefined){return(null)}
 
   return(
-    <div className="my-10 flex flex-col items-center">
-      <div className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200 my-3'>
+    <div className="mt-5 mb-10 flex flex-col items-center">
+      <div className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
           <div className='px-3 py-2 h-full grid place-items-center'>
             <File className='h-4 w-4 text-blue-500' />
           </div>
+          <div className="flex flex-row justify-between w-full">
           <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
             {specification.name}
+          </div>
+          {isLoading ? <LoadingSpinner/>:<Check />}
+          <button onClick={handleButtonClick}>
+            <Trash2 />
+          </button>
+            
           </div>
       </div>
     </div>
@@ -151,9 +185,11 @@ function SpecDisplay({specification}: SpecDisplayProps){
 interface ReferenceDisplayProps{
   refList: File[];
   setRefList: Dispatch<SetStateAction<File[]>>
+  setProcessedRefs: Dispatch<SetStateAction<Array<{fileName:string; fileContent:string}>>>;
 }
-function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
-  const [loadedReferences, setLoadedReferences] = useState<Array<{ fileName: string; fileText: string }>>([]);
+function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDisplayProps){
+  const [loadedReferences, setLoadedReferences] = useState<Array<{ fileName: string; fileContent: string }>>([]);
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const loadReferences = async () => {
@@ -170,14 +206,16 @@ function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
         })
       );
 
-      setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileText: string }>);
+      setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileContent: string }>);
     };
-
     void loadReferences();
+    setIsLoading(true)
   }, [refList]);
+
   useEffect(()=>{
-    console.log(loadedReferences)
-  },[loadedReferences])
+    console.log("loaded refs: " , loadedReferences)
+    setProcessedRefs(loadedReferences)
+  },[loadedReferences, setProcessedRefs])
   
   const handlePDFLoaded = async (file: File) => {
     try {
@@ -196,7 +234,8 @@ function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
         fullText += pageText + '\n'; // Add a newline between pages if you want
       }
 
-      return({fileName: file.name, fileText: fullText})
+      setIsLoading(false)
+      return({fileName: file.name, fileContent: fullText})
     } catch (error) {
       console.error('Error loading PDF:', error);
       // put a toast thing here
@@ -223,6 +262,7 @@ function ReferenceDisplay({refList, setRefList}:ReferenceDisplayProps){
           <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
             {refItem.name}
           </div>
+          {isLoading ? <LoadingSpinner/>:<Check />}
           <button onClick={()=>handleButtonClick(index)}>
             <Trash2 />
           </button>
