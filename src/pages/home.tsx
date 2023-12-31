@@ -5,6 +5,7 @@ import { api } from "~/utils/api";
 import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
+import {Cloud, File, Loader2 } from 'lucide-react'
 import type {
   ActualWorkout,
   ActualExercise,
@@ -16,6 +17,8 @@ import PageLayout from "~/pages/components/pagelayout";
 import LoadingSpinner from "./components/loadingspinner";
 import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
+import Dropzone from "react-dropzone";
+
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 const Home: NextPage = () => {
@@ -40,14 +43,8 @@ const Home: NextPage = () => {
         <NavBar />
         <div className="">
           <SignedIn>
-          <SpecParser 
-            specification={specification}
-            setSpecification={setSpecification}
-            />
-          <ReferenceSection 
-            references={references}
-            setReferences={setReferences}
-           />
+          <SpecDropzone />
+          <ReferenceDropZone />
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}
@@ -293,4 +290,105 @@ function ReferenceDisplay({refList}:ReferenceDisplayProps){
       ))}
     </div>
     )
+}
+
+function ReferenceDropZone(){
+  const [files, setFiles] = useState<File[]>([]);
+  return(
+    <Dropzone 
+      multiple={true}
+      onDrop={(acceptedFile)=>{
+        console.log(acceptedFile)
+        setFiles((prevFiles)=>[...prevFiles, ...acceptedFile])
+        console.log(files)
+      }}
+    >
+    {({getRootProps, getInputProps, acceptedFiles})=>(
+      <div className="border h-32 m-4 border-dashed border-gray-300 rounded-lg">
+        <div 
+        {...getRootProps()}
+        className="flex items-center justify-center h-full w-full">
+          <label 
+            htmlFor="dropzone-file"
+            className="flex flex-col items-center justify-center w-full h-full rounded-lg cursor-pointer bg-gray-900 hover:bg-gray-800"
+          >
+            <div className="flex flex-col items-center justify-center pt-5">Upload All References</div>
+            <Cloud className="h-8 w-8 text-zinc-700"/>
+            <p className='mb-2 text-sm text-zinc-700'>
+                  <span className='font-semibold'>Click to upload</span>{' '} or drag and drop
+                </p>
+              <input
+                {...getInputProps()}
+                type='file'
+                id='dropzone-file'
+                className='hidden'
+              />
+            {acceptedFiles && acceptedFiles[0] ? (
+                <div className='max-w-xs bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200'>
+                {acceptedFiles.map((file, index)=>(
+                  <React.Fragment key={index}>
+                    <div className='px-3 py-2 h-full grid place-items-center'>
+                      <File className='h-4 w-4 text-blue-500' />
+                    </div>
+                    <div className='px-3 py-2 h-full text-sm truncate'>
+                      {file.name}
+                    </div>
+                  </React.Fragment>
+                ))}
+                </div>
+              ) : null}
+          </label>
+        </div>
+      </div>
+    )}
+    </Dropzone>
+  )
+}
+function SpecDropzone(){
+  return(
+    <Dropzone 
+      multiple={false}
+      onDrop={(acceptedFile)=>{
+        console.log(acceptedFile)
+      }}
+    >
+    {({getRootProps, getInputProps, acceptedFiles})=>(
+      <div className="border h-32 m-4 border-dashed border-gray-300 rounded-lg">
+        <div 
+        {...getRootProps()}
+        className="flex items-center justify-center h-full w-full">
+          <label 
+            htmlFor="dropzone-file"
+            className="flex flex-col items-center justify-center w-full h-full rounded-lg cursor-pointer bg-gray-900 hover:bg-gray-800"
+          >
+            <div className="flex flex-col items-center justify-center pt-5">Upload a Specification</div>
+            <Cloud className="h-8 w-8 text-zinc-700"/>
+            <p className='mb-2 text-sm text-zinc-700'>
+                  <span className='font-semibold'>
+                    Click to upload
+                  </span>{' '}
+                  or drag and drop
+                </p>
+              <input
+                {...getInputProps()}
+                type='file'
+                id='dropzone-file'
+                className='hidden'
+              />
+            {acceptedFiles && acceptedFiles[0] ? (
+                <div className='max-w-xs bg-gray-800 flex items-center rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200'>
+                  <div className='px-3 py-2 h-full grid place-items-center'>
+                    <File className='h-4 w-4 text-blue-500' />
+                  </div>
+                  <div className='px-3 py-2 h-full text-sm truncate'>
+                    {acceptedFiles[0].name}
+                  </div>
+                </div>
+              ) : null}
+          </label>
+        </div>
+      </div>
+    )}
+    </Dropzone>
+  )
 }
