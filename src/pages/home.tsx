@@ -38,15 +38,20 @@ const Home: NextPage = () => {
     console.log("References: ", references)
   }, [references])
 
-  function handleButtonClick(){
-    console.log("Spec: ", specification)
-    console.log("References: ", references)
+  const handleButtonClick = () => {
     if (specification && references.length>0){
       console.log('good to go')
+      const result = sendDocsToBackend({
+        spec: specification,
+        references: references
+    })
+    console.log(result)
     } else {
       console.log('Error, no refs')
     }
   }
+  
+  const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation()
   
   return (
     <>
@@ -66,7 +71,7 @@ const Home: NextPage = () => {
           <div className="flex justify-center flex-row items-center ">
           <button 
             className="bg-gray-900 hover:bg-gray-800 py-4 px-5 border border-dashed"
-            onClick={handleButtonClick}
+            onClick={()=>handleButtonClick()}
             >Generate Report</button>
           </div>
           </SignedIn>
@@ -165,15 +170,18 @@ function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
   return(
     <div className="mt-5 mb-10 flex flex-col items-center">
       <div className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
-          <div className='px-3 py-2 h-full grid place-items-center'>
+          <div className='px-2 pt-1 mt-2 h-full grid place-items-center'>
             <File className='h-4 w-4 text-blue-500' />
           </div>
-          <div className="flex flex-row justify-between w-full">
+          <div className="flex flex-row justify-between w-full items-center gap-x-3 px-2">
           <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
             {specification.name}
           </div>
-          {isLoading ? <LoadingSpinner/>:<Check />}
-          <button onClick={handleButtonClick}>
+          {isLoading ? 
+            <Loader2 className='h-8 w-8 animate-spin' />:<Check/>}
+          <button onClick={handleButtonClick} 
+            className="hover:text-red-600"
+          >
             <Trash2 />
           </button>
             
@@ -251,19 +259,22 @@ function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDispl
   }
 
   return(
-    <div className="my-10 flex flex-col items-center">
+    <div className="my-3 flex flex-col items-center">
       {refList.map((refItem, index)=>(
-      <div key={index} className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200 divide-x divide-zinc-200 my-3'>
+      <div key={index} className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200  divide-zinc-200 my-3'>
         <React.Fragment >
-          <div className='px-3 py-2 h-full grid place-items-center'>
+          <div className='px-3 pt-1 mt-2 h-full grid place-items-center'>
             <File className='h-4 w-4 text-blue-500' />
           </div>
-          <div className="flex flex-row justify-between w-full">
+          <div className="flex flex-row justify-between w-full items-center gap-x-3 px-2">
           <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
             {refItem.name}
           </div>
-          {isLoading ? <LoadingSpinner/>:<Check />}
-          <button onClick={()=>handleButtonClick(index)}>
+          {isLoading ? 
+            <Loader2 className='h-8 w-8 animate-spin' />:<Check/>}
+          <button onClick={()=>handleButtonClick(index)}
+            className="hover:text-red-600"
+          >
             <Trash2 />
           </button>
 
