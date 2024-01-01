@@ -39,11 +39,14 @@ export const documentRouter = createTRPCRouter({
     const openai = new OpenAI();
 
     let featureList:string = ""
-    const chunkSize = 1000
+    const chunkSize = 15000
     let totalChunks=Math.ceil(input.spec.fileContent.length/chunkSize)
-    totalChunks = 1
+    //console.log(input.spec.fileContent.slice(0,chunkSize))
+
+    //totalChunks = 1 //small testing only
     //console.log("total chunks: ", totalChunks)
-    const chunkedText = makeChunks(testText, totalChunks)
+    //const chunkedText = makeChunks(testText, totalChunks)
+    const chunkedText = makeChunks(input.spec.fileContent, totalChunks)
 
     const textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: 2000,
@@ -53,7 +56,8 @@ export const documentRouter = createTRPCRouter({
     const loadedDocuments = referencesToTextLoader(input.references, ctx.userId)
     
     const splitDocuments = await textSplitter.splitDocuments(loadedDocuments)
-    //console.log(splitDocuments)
+    console.log(splitDocuments)
+
     for (let i=0; i<chunkedText.length; i++){
       const completion = await openai.chat.completions.create({
         messages: [
@@ -66,6 +70,7 @@ export const documentRouter = createTRPCRouter({
     });
       const features = completion.choices[0]?.message.content
       //console.log("features: ", features)
+      console.log(completion.choices[0])
       if (features !== null && features !==undefined){
         featureList = features
       }
@@ -103,12 +108,24 @@ export const documentRouter = createTRPCRouter({
       model, 
       vectorStore.asRetriever(),
       { returnSourceDocuments: true, }
-      )
-    const response = await chain.call({
-      query: `Do the references disclose ${featureArray[0]}?`
-    })    
-    console.log(response)    
-    console.log(response.sourceDocuments[0])    
+    )
+    
+    let analysisArray:string[] = []
+
+    for (let i=0; i<featureArray.length; i++){
+      const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
+
+      const response = await chain.call({
+        query: `Do the references disclose: ${currentFeature}?`
+      })    
+      console.log(response.text)    
+      analysisArray.push(response.text)
+    }
+    await pineconeIndex.deleteAll()
+    
+    console.log("COMPLETED")
+    
+    return analysisArray
    })
 });
 
