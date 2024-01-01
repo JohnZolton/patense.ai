@@ -40,18 +40,19 @@ export const documentRouter = createTRPCRouter({
     console.log("references: ", input.references.length)
 
     const openai = new OpenAI();
+    //const featureList = ""
     
     const completion = await openai.chat.completions.create({
       messages: [
         { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
-        { role: "user", content: "Identify each and every inventive element in the following disclosure, make sure you identify every possible feature" },
+        { role: "user", content: "Identify each and every inventive element in the following disclosure, make sure you identify every possible feature but do not repeat yourself." },
+        //{ role: "user", content: `Identified features: ${featureList}` },
         { role: "user", content: `Disclosure: ${testText}` }
       ],
       model: "gpt-3.5-turbo",
     });
   
-    console.log(completion);
-    console.log(completion.choices[0]?.message);
+    console.log(completion.choices[0]?.message.content);
    })
 
 });
