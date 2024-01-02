@@ -16,6 +16,12 @@ import { Document } from "langchain/document";
 import { RetrievalQAChain } from "langchain/chains";
 import { ChatOpenAI } from "langchain/chat_models/openai";
 
+interface FeatureItem {
+  feature: string;
+  analysis: string;
+  source: string;
+}
+
 export const documentRouter = createTRPCRouter({
   
   AnalyzeDocs: privateProcedure.input(
@@ -110,7 +116,7 @@ export const documentRouter = createTRPCRouter({
       { returnSourceDocuments: true, }
     )
     
-    let analysisArray:string[] = []
+    let analysisArray:FeatureItem[] = []
 
     for (let i=0; i<featureArray.length; i++){
       const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
@@ -119,7 +125,10 @@ export const documentRouter = createTRPCRouter({
         query: `Do the references disclose: ${currentFeature}?`
       })    
       console.log(response)    
-      analysisArray.push(response.text)
+      if (currentFeature!==undefined){
+        const newItem: FeatureItem = {feature: currentFeature, analysis: response.text, source:"TODO"}
+        analysisArray.push(newItem)
+      }
     }
 
     await pineconeIndex.namespace(ctx.userId).deleteAll()

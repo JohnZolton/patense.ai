@@ -25,6 +25,7 @@ const Home: NextPage = () => {
   const [refFiles, setRefFiles] = useState<File[]>([]);
   const [specFile, setSpecFile] = useState<File>();
   const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useState<FeatureItem[]>(dummyData)
 
   useEffect(() => {
     console.log('refFiles changed:', refFiles);
@@ -56,8 +57,9 @@ const Home: NextPage = () => {
   
   const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation(
     {
-      onSuccess: ()=>{
+      onSuccess: (data)=>{
         setIsLoading(false)
+        setResultData(data)
       }
     }
   )
@@ -83,6 +85,9 @@ const Home: NextPage = () => {
             className="bg-gray-900 hover:bg-gray-800 py-4 px-5 border border-dashed"
             onClick={()=>handleButtonClick()}
             >Generate Report</button>
+          </div>
+          <div>
+            <AnalysisContainer features={resultData} />
           </div>
           </SignedIn>
           <SignedOut>
@@ -132,6 +137,57 @@ function LoadDisplay(){
     <div className="flex flex-col items-center justify-center py-3">
       <Loader2 className="animate-spin h-10 w-10 items-center justify-center"/>
       <div>{loadingMessages[currentMessageIndex]}</div>
+    </div>
+  )
+}
+
+interface FeatureItem {
+  feature: string;
+  analysis: string;
+  source: string;
+}
+
+
+const dummyData: FeatureItem[] = [
+  {
+    feature: 'Lorem',
+    analysis: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+    source: 'Lorem Source',
+  },
+  {
+    feature: 'Ipsum',
+    analysis: 'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    source: 'Ipsum Source',
+  },
+  {
+    feature: 'Dolor',
+    analysis: 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.',
+    source: 'Dolor Source',
+  },
+];
+
+interface AnalysisContainerProps {
+  features: FeatureItem[]
+}
+
+function AnalysisContainer({features}:AnalysisContainerProps){
+  return(
+    <div className="my-4">
+    {features.map((featureItem, index)=>(
+      <AnalysisDisplay key={index} item={featureItem} />
+    ))}
+    </div>
+  )
+}
+interface AnalysisDisplayProps {
+  item: FeatureItem;
+}
+function AnalysisDisplay({item}:AnalysisDisplayProps){
+  return(
+    <div className="flex flex-col items-start border border-collapse p-2 gap-y-2 my-2">
+      <div className="">Feature: {item.feature}</div>
+      <div className="">Analysis: {item.analysis}</div>
+      <div className="text-sm">Source: {item.source}</div>
     </div>
   )
 }
