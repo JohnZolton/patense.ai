@@ -25,7 +25,7 @@ const Home: NextPage = () => {
   const [refFiles, setRefFiles] = useState<File[]>([]);
   const [specFile, setSpecFile] = useState<File>();
   const [isLoading, setIsLoading] = useState(false);
-  const [resultData, setResultData] = useState<FeatureItem[]>(dummyData)
+  const [resultData, setResultData] = useState<FeatureItem[]>([])
 
   useEffect(() => {
     console.log('refFiles changed:', refFiles);
@@ -41,11 +41,11 @@ const Home: NextPage = () => {
     console.log("References: ", references)
   }, [references])
 
-  const handleButtonClick = async () => {
+  const handleButtonClick = () => {
     if (specification && references.length>0){
       console.log('good to go')
       setIsLoading(true)
-      const result = await sendDocsToBackend({
+      const result = sendDocsToBackend({
         spec: specification,
         references: references
     })
@@ -113,9 +113,10 @@ function LoadDisplay(){
     'Converting references to vectors...',
     'Searching references for inventive elements...',
     'Preparing report...',
+    'Finishing up...'
   ];
   
-  const intervalDurations = [4000, 20000, 4000, 4000, 3500]; // Set varying intervals for each loading state
+  const intervalDurations = [12000, 50000, 10000, 40000, 20000]; // Set varying intervals for each loading state
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
   useEffect(() => {
@@ -126,6 +127,8 @@ function LoadDisplay(){
         const nextIndex = currentMessageIndex + 1;
         const nextInterval = intervalDurations[nextIndex];
         setTimeout(() => clearInterval(intervalId), nextInterval);
+      } else {
+        setCurrentMessageIndex(5)
       }
     }, intervalDurations[currentMessageIndex]);
 
@@ -378,7 +381,6 @@ function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDispl
           >
             <Trash2 />
           </button>
-
           </div>
         </React.Fragment>
       </div>

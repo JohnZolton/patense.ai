@@ -44,9 +44,9 @@ export const documentRouter = createTRPCRouter({
 
     const openai = new OpenAI();
 
-    let featureList:string = ""
+    let featureList = ""
     const chunkSize = 12000
-    let totalChunks=Math.ceil(input.spec.fileContent.length/chunkSize)
+    const totalChunks=Math.ceil(input.spec.fileContent.length/chunkSize)
     //console.log(input.spec.fileContent.slice(0,chunkSize))
 
     //totalChunks = 1 //small testing only
@@ -70,7 +70,7 @@ export const documentRouter = createTRPCRouter({
           { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
           { role: "user", content: "Identify each and every inventive element in the following disclosure, make sure you identify every possible feature but do not repeat yourself." },
           { role: "user", content: `Identified features: ${featureList}` },
-          { role: "user", content: `Disclosure: ${chunkedText[i]}` }
+          { role: "user", content: `Disclosure: ${chunkedText[i] ?? ""}` }
         ],
         model: "gpt-3.5-turbo",
     });
@@ -116,18 +116,21 @@ export const documentRouter = createTRPCRouter({
       { returnSourceDocuments: true, }
     )
     
-    let analysisArray:FeatureItem[] = []
+    const analysisArray:FeatureItem[] = []
 
     for (let i=0; i<featureArray.length; i++){
       const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
+      const fullFeature = featureArray[i]
 
-      const response = await chain.call({
-        query: `Do the references disclose: ${currentFeature}?`
-      })    
-      console.log(response)    
-      if (currentFeature!==undefined){
-        const newItem: FeatureItem = {feature: currentFeature, analysis: response.text, source:"TODO"}
-        analysisArray.push(newItem)
+      if (currentFeature!==undefined &&fullFeature !== undefined){
+        if (/^\d+/.test(fullFeature)){
+          const response = await chain.call({
+            query: `Do the references disclose: ${currentFeature}?`
+          })    
+          console.log(response)    
+          const newItem: FeatureItem = {feature: fullFeature, analysis: String(response.text), source:"TODO"}
+          analysisArray.push(newItem)
+        }
       }
     }
 
