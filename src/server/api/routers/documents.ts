@@ -39,7 +39,7 @@ export const documentRouter = createTRPCRouter({
     const openai = new OpenAI();
 
     let featureList:string = ""
-    const chunkSize = 15000
+    const chunkSize = 12000
     let totalChunks=Math.ceil(input.spec.fileContent.length/chunkSize)
     //console.log(input.spec.fileContent.slice(0,chunkSize))
 
@@ -118,10 +118,11 @@ export const documentRouter = createTRPCRouter({
       const response = await chain.call({
         query: `Do the references disclose: ${currentFeature}?`
       })    
-      console.log(response.text)    
+      console.log(response)    
       analysisArray.push(response.text)
     }
-    await pineconeIndex.deleteAll()
+
+    await pineconeIndex.namespace(ctx.userId).deleteAll()
     
     console.log("COMPLETED")
     

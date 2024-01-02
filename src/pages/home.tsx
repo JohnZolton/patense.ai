@@ -24,6 +24,8 @@ const Home: NextPage = () => {
   const [references, setReferences] = useState<{fileName:string; fileContent:string}[]>([]);
   const [refFiles, setRefFiles] = useState<File[]>([]);
   const [specFile, setSpecFile] = useState<File>();
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     console.log('refFiles changed:', refFiles);
   }, [refFiles]);
@@ -38,10 +40,11 @@ const Home: NextPage = () => {
     console.log("References: ", references)
   }, [references])
 
-  const handleButtonClick = () => {
+  const handleButtonClick = async () => {
     if (specification && references.length>0){
       console.log('good to go')
-      const result = sendDocsToBackend({
+      setIsLoading(true)
+      const result = await sendDocsToBackend({
         spec: specification,
         references: references
     })
@@ -51,7 +54,13 @@ const Home: NextPage = () => {
     }
   }
   
-  const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation()
+  const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation(
+    {
+      onSuccess: ()=>{
+        setIsLoading(false)
+      }
+    }
+  )
   
   return (
     <>
@@ -68,7 +77,8 @@ const Home: NextPage = () => {
           <SpecDisplay specification={specFile} setSpec={setSpecification} setSpecFile={setSpecFile}/>
           <ReferenceDropZone setRefFile={setRefFiles}/>
           <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
-          <div className="flex justify-center flex-row items-center ">
+          <div className="flex justify-center flex-col items-center ">
+          {isLoading && <LoadDisplay />}
           <button 
             className="bg-gray-900 hover:bg-gray-800 py-4 px-5 border border-dashed"
             onClick={()=>handleButtonClick()}
@@ -90,6 +100,41 @@ const Home: NextPage = () => {
 };
 
 export default Home;
+
+function LoadDisplay(){
+  const loadingMessages = [
+    'Processing documents...',
+    'Extracting inventive elements...',
+    'Converting references to vectors...',
+    'Searching references for inventive elements...',
+    'Preparing report...',
+  ];
+  
+  const intervalDurations = [4000, 20000, 4000, 4000, 3500]; // Set varying intervals for each loading state
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+
+  useEffect(() => {
+    // Set up an interval to cycle through loading messages every 2000 milliseconds (2 seconds)
+    const intervalId = setInterval(() => {
+      if (currentMessageIndex < loadingMessages.length -1){
+        setCurrentMessageIndex((prevIndex) => prevIndex + 1);
+        const nextIndex = currentMessageIndex + 1;
+        const nextInterval = intervalDurations[nextIndex];
+        setTimeout(() => clearInterval(intervalId), nextInterval);
+      }
+    }, intervalDurations[currentMessageIndex]);
+
+    // Clear the interval when the component unmounts or is no longer needed
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array ensures the effect runs only once
+  
+  return(
+    <div className="flex flex-col items-center justify-center py-3">
+      <Loader2 className="animate-spin h-10 w-10 items-center justify-center"/>
+      <div>{loadingMessages[currentMessageIndex]}</div>
+    </div>
+  )
+}
 
 interface TextItem {
   str: string;
