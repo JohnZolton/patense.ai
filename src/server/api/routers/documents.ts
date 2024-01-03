@@ -15,6 +15,10 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "langchain/document";
 import { RetrievalQAChain } from "langchain/chains";
 import { ChatOpenAI } from "langchain/chat_models/openai";
+import { kMaxLength } from "buffer";
+import {ParentDocumentRetriever} from "langchain/retrievers/parent_document"
+import { InMemoryStore } from "langchain/storage/in_memory"
+import { Doc } from "prettier";
 
 interface FeatureItem {
   feature: string;
@@ -53,17 +57,6 @@ export const documentRouter = createTRPCRouter({
     //console.log("total chunks: ", totalChunks)
     //const chunkedText = makeChunks(testText, totalChunks)
     const chunkedText = makeChunks(input.spec.fileContent, totalChunks)
-
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 2000,
-      chunkOverlap: 200,
-    })
-    
-    const loadedDocuments = referencesToTextLoader(input.references, ctx.userId)
-    
-    const splitDocuments = await textSplitter.splitDocuments(loadedDocuments)
-    console.log(splitDocuments)
-
     for (let i=0; i<chunkedText.length; i++){
       const completion = await openai.chat.completions.create({
         messages: [
@@ -91,6 +84,15 @@ export const documentRouter = createTRPCRouter({
       openAIApiKey: process.env.OPEN_API_KEY,
     })
 
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 500,
+      chunkOverlap: 100,
+    })
+    
+    const loadedDocuments = referencesToTextLoader(input.references, ctx.userId)
+    
+    const splitDocuments = await textSplitter.splitDocuments(loadedDocuments)
+
     const pinecone = new Pinecone({
       environment: "us-east-1-aws",      
       apiKey: process.env.PINECONE_API_KEY!,      
@@ -103,9 +105,11 @@ export const documentRouter = createTRPCRouter({
       embeddings,
       {
         pineconeIndex,
-        namespace: ctx.userId
-      }
+        namespace: ctx.userId,
+        textKey: ctx.userId
+      },
     )
+    
     
     // retrieval QA over inventive elements    
     const model = new ChatOpenAI({modelName:"gpt-3.5-turbo"})
@@ -118,6 +122,25 @@ export const documentRouter = createTRPCRouter({
     
     const analysisArray:FeatureItem[] = []
 
+    interface Document {
+      pageContent: string;
+      metadata: {
+        title: string;
+        userId: string;
+        loc: {
+          // You might need to define the structure of loc object
+          // Assuming it has some properties like lat and long
+          lat: number;
+          long: number;
+        };
+        // You can add more properties if necessary
+      };
+    }
+    interface Responsetype {
+      text: string,
+      sourceDocuments: Document[],
+    }
+
     for (let i=0; i<featureArray.length; i++){
       const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
       const fullFeature = featureArray[i]
@@ -126,9 +149,13 @@ export const documentRouter = createTRPCRouter({
         if (/^\d+/.test(fullFeature)){
           const response = await chain.call({
             query: `Do the references disclose: ${currentFeature}?`
-          })    
-          console.log(response)    
-          const newItem: FeatureItem = {feature: fullFeature, analysis: String(response.text), source:"TODO"}
+          }) as { sourceDocuments: Document[], text: string}
+          console.log(response)
+          
+          const sourceDocuments: Document[]=response.sourceDocuments
+          const uniqueTitles = new Set(sourceDocuments.map(doc=>doc.metadata.title))
+          const concatenatedTitles = Array.from(uniqueTitles).join(", ")
+          const newItem: FeatureItem = {feature: fullFeature, analysis: String(response.text), source:concatenatedTitles}
           analysisArray.push(newItem)
         }
       }
