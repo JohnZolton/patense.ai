@@ -61,3 +61,23 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+
+model OAReport {
+  id       Int       @id @default(autoincrement())
+  date     DateTime  @default(now())
+  userID   String
+  title String
+  features FeatureItem[]
+  @@index([userID])
+}
+
+model FeatureItem {
+  id       Int      @id @default(autoincrement())
+  feature  String @db.MediumText()
+  analysis String @db.LongText()
+  source   String @db.MediumText()
+  reportID Int  // Foreign key relationship with the Analysis model
+  oaReport OAReport @relation(fields: [reportID], references: [id])
+  @@index([reportID])
+}
