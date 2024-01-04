@@ -19,6 +19,8 @@ import { kMaxLength } from "buffer";
 import {ParentDocumentRetriever} from "langchain/retrievers/parent_document"
 import { InMemoryStore } from "langchain/storage/in_memory"
 import { Doc } from "prettier";
+import { TRPCClientError } from "@trpc/client";
+import { TRPCError } from "@trpc/server";
 
 interface FeatureItem {
   feature: string;
@@ -27,6 +29,28 @@ interface FeatureItem {
 }
 
 export const documentRouter = createTRPCRouter({
+  
+  getAllReports: privateProcedure.query(async ({ctx})=>{
+    const reports = await ctx.prisma.oAReport.findMany({
+      where: {
+        userID: ctx.userId,
+      },
+      orderBy: [{ date: "desc"}],
+      include: {
+        features: true
+      }
+    })
+    if (reports[0]&&reports[0]){
+    //console.log(reports[0].features[0])
+    }
+    if (!reports){
+      throw new TRPCError({
+        code:"NOT_FOUND",
+        message: "No reports with that User"
+      })
+    }
+    return reports
+  }),
   
   AnalyzeDocs: privateProcedure.input(
     z.object({
@@ -160,6 +184,19 @@ export const documentRouter = createTRPCRouter({
         }
       }
     }
+    await ctx.prisma.oAReport.create({
+      data:{
+        userID:ctx.userId,
+        title: input.spec.fileName,
+        features: {
+          create: analysisArray.map((feature)=>({
+            feature: feature.feature,
+            analysis: feature.analysis,
+            source: feature.source
+          }))
+        }
+      }
+    })
 
     await pineconeIndex.namespace(ctx.userId).deleteAll()
     

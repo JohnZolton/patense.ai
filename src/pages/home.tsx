@@ -19,13 +19,19 @@ import { text } from "stream/consumers";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
+enum AppState {
+  LOAD_DOCUMENTS = 'LOAD_DOCUMENTS',
+  LOADING = 'LOADING',
+  SHOW_RESULTS = 'SHOW_RESULTS',
+}
+
 const Home: NextPage = () => {
   const [specification, setSpecification] = useState<{fileName:string; fileContent:string}>();
   const [references, setReferences] = useState<{fileName:string; fileContent:string}[]>([]);
   const [refFiles, setRefFiles] = useState<File[]>([]);
   const [specFile, setSpecFile] = useState<File>();
-  const [isLoading, setIsLoading] = useState(false);
   const [resultData, setResultData] = useState<FeatureItem[]>([])
+  const [appState, setAppState] = useState<AppState>(AppState.LOAD_DOCUMENTS);
 
   useEffect(() => {
     console.log('refFiles changed:', refFiles);
@@ -44,7 +50,7 @@ const Home: NextPage = () => {
   const handleButtonClick = () => {
     if (specification && references.length>0){
       console.log('good to go')
-      setIsLoading(true)
+      setAppState(AppState.LOADING)
       const result = sendDocsToBackend({
         spec: specification,
         references: references
@@ -58,8 +64,8 @@ const Home: NextPage = () => {
   const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation(
     {
       onSuccess: (data)=>{
-        setIsLoading(false)
         setResultData(data)
+        setAppState(AppState.SHOW_RESULTS)
       }
     }
   )
@@ -67,7 +73,7 @@ const Home: NextPage = () => {
   return (
     <>
       <Head>
-        <title>Patense.io</title>
+        <title>Patense.ai</title>
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -75,20 +81,30 @@ const Home: NextPage = () => {
         <NavBar />
         <div className="">
           <SignedIn>
-          <SpecDropzone setSpecFile={setSpecFile} />
-          <SpecDisplay specification={specFile} setSpec={setSpecification} setSpecFile={setSpecFile}/>
-          <ReferenceDropZone setRefFile={setRefFiles}/>
-          <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
+          {appState === AppState.LOAD_DOCUMENTS && (
+          <div>
+            <SpecDropzone setSpecFile={setSpecFile} />
+            <SpecDisplay specification={specFile} setSpec={setSpecification} setSpecFile={setSpecFile}/>
+            <ReferenceDropZone setRefFile={setRefFiles}/>
+            <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
           <div className="flex justify-center flex-col items-center ">
-          {isLoading && <LoadDisplay />}
           <button 
             className="bg-gray-900 hover:bg-gray-800 py-4 px-5 border border-dashed"
             onClick={()=>handleButtonClick()}
             >Generate Report</button>
           </div>
+          </div>
+          )}
+          {appState === AppState.LOADING && (
+          <div>
+          <LoadDisplay/>
+          </div>
+          )}
+          {appState === AppState.SHOW_RESULTS && (
           <div>
             <AnalysisContainer features={resultData} />
           </div>
+          )}
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}

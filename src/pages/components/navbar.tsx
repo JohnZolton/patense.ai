@@ -59,10 +59,18 @@ function NavMenuItems() {
 
       <li>
         <Link
-          href="allworkouts"
+          href="reports"
           className="text-slate-300 hover:text-white hover:underline"
         >
-          History
+          Reports
+        </Link>
+      </li>
+      <li>
+        <Link
+          href="about"
+          className="text-slate-300 hover:text-white hover:underline"
+        >
+          About
         </Link>
       </li>
     </ul>
