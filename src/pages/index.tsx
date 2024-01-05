@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import MaxWidthWrapper from "./components/maxwidthwrapper";
+import { ArrowRight } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 
 
 
@@ -17,7 +19,8 @@ const Home: NextPage = () => {
       </Head>
       <div className="grainy">
 
-      <MaxWidthWrapper className="mb-12 mt-28 sm:40 flex flex-col items-center justify-center text-center">
+
+      <MaxWidthWrapper className="mb-12 mt-10 sm:40 flex flex-col items-center justify-center text-center">
         <div className="mx-auto mb-4 flex max-w-fit items-center justify-center space-x-2 overflow-hidden rounded-full border border-gray-200 bg-white px-7 py-2 shadow-md backdrop-blur transition-all hover:border-gray-300 hover:bg-white/50">
           <p className="text-sm font-semibold text-gray-700">
             Patense.ai is now public!
@@ -41,10 +44,19 @@ const Home: NextPage = () => {
               >Get started</Link>
             </SignedIn>
           </div>
+        <Link
+          className={buttonVariants({
+            variant:"secondary",
+            size:'lg',
+            className: 'mt-5',
+          })}
+          href={"home"}
+        >Get Started{' '} <ArrowRight className='ml-2 h-5 w-5'/>
+        </Link>
       </MaxWidthWrapper>
             
       {/* Feature section */}
-      <div className='mx-auto mb-32 mt-16 max-w-5xl sm:mt-32'>
+      <div className='mx-auto px-16 mb-32 mt-16 max-w-5xl sm:mt-32'>
         <div className='mb-12 px-6 lg:px-8'>
           <div className='mx-auto max-w-2xl sm:text-center'>
             <h2 className='mt-2 font-bold text-4xl text-zing-700 sm:text-5xl'>
@@ -53,6 +65,7 @@ const Home: NextPage = () => {
             <p className='mt-4 text-lg text-gray-600'>Responding to Office Actions has never been easier.</p>
           </div>
         </div>
+        
 
         {/* steps */}
         <ol className='my-8 space-y-4 pt-8 md:flex md:space-x-12 md:space-y-0'>
@@ -90,8 +103,8 @@ const Home: NextPage = () => {
           </li>
         </ol>
         </div>
-      </div>
 
+      </div>
     </>
   );
 };
