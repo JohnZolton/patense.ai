@@ -77,7 +77,6 @@ const Home: NextPage = () => {
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <PageLayout>
         <NavBar />
         <div className="">
           <SignedIn>
@@ -115,7 +114,6 @@ const Home: NextPage = () => {
             </SignInButton>
           </SignedOut>
         </div>
-      </PageLayout>
     </>
   );
 };
