@@ -55,18 +55,18 @@ const Home: NextPage = () => {
             
       {/* Feature section */}
       <div className='px-16 mx-auto mb-12 max-w-5xl sm:mt-8'>
-        <div className='px-6 mb-12 lg:px-8'>
+        <div className='px-6 mb-6 lg:px-8'>
           <div className='mx-auto max-w-2xl sm:text-center'>
             <h2 className='mt-2 text-4xl font-bold text-zing-700 sm:text-5xl'>
               Analyze references in seconds
             </h2>
-            <p className='mt-4 text-lg text-gray-600'>Responding to Office Actions has never been easier.</p>
+            <p className='mt-6 text-lg text-gray-600'>Responding to Office Actions has never been easier.</p>
           </div>
         </div>
         
 
         {/* steps */}
-        <ol className='pt-8 my-8 space-y-4 md:flex md:space-x-12 md:space-y-0'>
+        <ol className='pt-6  space-y-4 md:flex md:space-x-12 md:space-y-0'>
           <li className='md:flex-1'>
             <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
               <span className='text-sm font-medium text-blue-600'>

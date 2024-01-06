@@ -14,7 +14,7 @@ import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
 import Dropzone from "react-dropzone";
 import { text } from "stream/consumers";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 
 
@@ -89,7 +89,9 @@ const Home: NextPage = () => {
             <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
             <div className="flex flex-col justify-center items-center">
             <Button 
-              className="bg-zinc-600"
+              className={buttonVariants({
+                variant:"default"
+              })}
               onClick={()=>handleButtonClick()}
               >Generate Report</Button>
             </div>
@@ -287,10 +289,10 @@ function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
   if (specification === undefined){return(null)}
 
   return(
-    <div className="flex flex-col items-center mt-5 mb-10">
-      <div className='max-w-lg bg-gray-400 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
-          <div className='grid place-items-center px-2 pt-1 mt-2 h-full'>
-            <File className='w-4 h-4 text-blue-500' />
+    <div className="flex flex-col items-center">
+      <div className='max-w-2xl w-full bg-gray-100 flex items-center justify-center flex-row rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200'>
+          <div className=''>
+            <File className='w-4 h-4 ml-2 text-black' />
           </div>
           <div className="flex flex-row gap-x-3 justify-between items-center px-2 w-full">
           <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
@@ -301,7 +303,7 @@ function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
           <button onClick={handleButtonClick} 
             className="hover:text-red-600"
           >
-            <Trash2 />
+            <Trash2 className=""/>
           </button>
             
           </div>
@@ -378,14 +380,14 @@ function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDispl
   }
 
   return(
-    <div className="flex flex-col items-center my-3">
+    <div className="flex flex-col items-center">
       {refList.map((refItem, index)=>(
-      <div key={index} className='max-w-lg bg-gray-400 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
+      <div key={index} className='max-w-2xl w-full bg-gray-100 flex items-center flex-row justify-center rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-2'>
         <React.Fragment >
-          <div className='grid place-items-center px-3 pt-1 mt-2 h-full'>
-            <File className='w-4 h-4 text-blue-500' />
+          <div className=''>
+            <File className='w-4 h-4 ml-2 text-black' />
           </div>
-          <div className="flex flex-row gap-x-3 justify-between items-center px-2 w-full">
+          <div className="flex flex-row gap-x-2 justify-between items-center px-2 w-full">
           <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
             {refItem.name}
           </div>
@@ -419,16 +421,16 @@ function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
-      <div className="m-4 h-32 rounded-lg border border-gray-300 border-dashed">
+      <div className="m-4 h-32 rounded-lg border border-gray-600 border-dashed">
         <div 
         {...getRootProps()}
         className="flex justify-center items-center w-full h-full">
           <label 
             htmlFor="dropzone-file"
-            className="flex flex-col justify-center items-center w-full h-full bg-gray-400 rounded-lg cursor-pointer hover:bg-gray-500"
+            className="flex flex-col justify-center items-center w-full h-full bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
           >
             <div className="flex flex-col justify-center items-center pt-2">Upload All References</div>
-            <Cloud className="w-8 h-8 text-zinc-700"/>
+            <Cloud className="w-8 h-8 text-zinc-500"/>
             <p className='mb-2 text-sm text-zinc-700'>
                   <span className='font-semibold'>Click to upload</span>{' '} or drag and drop
                 </p>
@@ -461,16 +463,16 @@ function SpecDropzone({setSpecFile}: SpecDropzoneProps){
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
-      <div className="m-4 h-32 rounded-lg border border-gray-300 border-dashed">
+      <div className="m-4 h-32 rounded-lg border border-gray-600 border-dashed">
         <div 
         {...getRootProps()}
         className="flex justify-center items-center w-full h-full">
           <label 
             htmlFor="dropzone-file"
-            className="flex flex-col justify-center items-center w-full h-full bg-gray-400 rounded-lg cursor-pointer hover:bg-gray-500"
+            className="flex flex-col justify-center items-center w-full h-full bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
           >
             <div className="flex flex-col justify-center items-center pt-2">Upload a Specification</div>
-            <Cloud className="w-8 h-8 text-zinc-700"/>
+            <Cloud className="w-8 h-8 text-zinc-500"/>
             <p className='mb-2 text-sm text-zinc-700'>
                   <span className='font-semibold'>
                     Click to upload
