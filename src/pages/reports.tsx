@@ -10,31 +10,33 @@ import { v4 } from "uuid";
 import { NavBar } from "~/pages/components/navbar";
 import PageLayout from "~/pages/components/pagelayout";
 import LoadingSpinner from "./components/loadingspinner";
-import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
 import Dropzone from "react-dropzone";
 import { text } from "stream/consumers";
 import { OAReport, FeatureItem } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
+import ReactPDF, { pdf, Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { saveAs } from 'file-saver';
 
 
 
 const Reports: NextPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState<(OAReport & {
     features: FeatureItem[];
 })>()
 
-  
   //useEffect(() => {
     //setSelectedReport(undefined)
   //}, []);
 
   const { data: reports, isLoading: reportsLoading } = api.DocumentRouter.getAllReports.useQuery()
   
-  function handleDownloadClick(){
-    console.log("download WIP")
+  async function handleDownloadClick(){
+    if (selectedReport){
+      const blob = await pdf((<MyDocument selectedReport={selectedReport}/>)).toBlob()
+      saveAs(blob, selectedReport.title)
+    }
   }
   function handleButtonClick(index:number){
     if (reports && reports[index]!== undefined){
@@ -57,6 +59,8 @@ const Reports: NextPage = () => {
         <NavBar />
           <SignedIn>
           <div className="flex justify-center flex-col items-center ">
+          {reportsLoading && 
+      (<Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>)}
             {(!selectedReport) && reports && reports.map((report, index)=>(
               <button key={index} onClick={()=>handleButtonClick(index)} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">{report.title}</button>
             ))
@@ -67,7 +71,7 @@ const Reports: NextPage = () => {
                 <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
                 <Button onClick={handleDownloadClick}>Download Report</Button>
               </div>
-              <AnalysisContainer report={selectedReport} />
+                <AnalysisContainer report={selectedReport} />
           </div>
           }
           </div>
@@ -120,3 +124,75 @@ function AnalysisDisplay({item}:AnalysisDisplayProps){
 }
 
 
+
+const pdfStyles = StyleSheet.create({
+  page: {
+    flexDirection: 'row',
+    backgroundColor: 'rgb(243 244 246)',
+    justifyContent: 'center', // Center content horizontally
+    alignItems: 'center', // Center content vertically
+  },
+  section: {
+    margin: 5,
+    padding: 10,
+    flexGrow: 1,
+    alignItems: 'flex-start',
+    alignContent: 'flex-start',
+    backgroundColor: '#E4E4E4',
+    borderRadius: 3
+  },
+  container: {
+    width: '100%',
+    maxWidth: 600, // Adjust the maximum width as needed
+    margin: 'auto',
+    textAlign: 'left'
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginTop: 16,
+    textAlign: 'center', // Center content vertically
+  },
+});
+
+// AnalysisContainer component
+const PDFContainer = ({ report }: AnalysisContainerProps) => {
+  if (!report) {
+    return null;
+  }
+
+  return (
+    <View style={pdfStyles.container}>
+      <Text style={pdfStyles.title}>
+        {report.title} - {report.date.toLocaleDateString()}
+      </Text>
+      {report.features.map((featureItem, index) => (
+        <PDFDisplay key={index} item={featureItem} />
+      ))}
+    </View>
+  );
+};
+
+// AnalysisDisplay component
+const PDFDisplay = ({ item }: AnalysisDisplayProps) => (
+  <View style={pdfStyles.section}>
+    <Text style={{ fontWeight: 'bold', fontSize:12 }}>{item.feature}</Text>
+    <Text style={{fontSize: 12, marginVertical: 10}}>Analysis: {item.analysis}</Text>
+    <Text style={{ fontSize: 10 }}>Source: {item.source}</Text>
+  </View>
+);
+
+interface MyDocumentProps {
+  selectedReport: OAReport & {
+    features: FeatureItem[];
+};
+}
+// MyDocument component
+const MyDocument = ({ selectedReport }: MyDocumentProps) => (
+  <Document>
+    <Page size="A4" style={pdfStyles.page}>
+      <PDFContainer report={selectedReport} />
+    </Page>
+  </Document>
+);
