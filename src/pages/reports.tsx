@@ -14,15 +14,33 @@ import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
 import Dropzone from "react-dropzone";
 import { text } from "stream/consumers";
+import { OAReport, FeatureItem } from "@prisma/client";
+import { Button } from "@/components/ui/button";
 
 
 
 
 const Reports: NextPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [resultData, setResultData] = useState<FeatureItem[]>([])
+  const [selectedReport, setSelectedReport] = useState<(OAReport & {
+    features: FeatureItem[];
+})>()
+
+  
+  //useEffect(() => {
+    //setSelectedReport(undefined)
+  //}, []);
 
   const { data: reports, isLoading: reportsLoading } = api.DocumentRouter.getAllReports.useQuery()
+  
+  function handleDownloadClick(){
+    console.log("download WIP")
+  }
+  function handleButtonClick(index:number){
+    if (reports && reports[index]!== undefined){
+      setSelectedReport(reports[index])  
+    }
+  }
   
   return (
     <>
@@ -31,15 +49,27 @@ const Reports: NextPage = () => {
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <PageLayout>
+
+        {/* grainy not applying to whole screen, this fixes */}
+        <div className="grainy">
+        <div className={selectedReport ? `` : 'h-screen'}>
+
         <NavBar />
-        <div className="">
           <SignedIn>
           <div className="flex justify-center flex-col items-center ">
-            {reports && reports.map((report, index)=>(
-              <div key={index}>{report.title}</div>
+            {(!selectedReport) && reports && reports.map((report, index)=>(
+              <button key={index} onClick={()=>handleButtonClick(index)} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">{report.title}</button>
             ))
             }
+          {selectedReport && 
+            <div>
+              <div className="flex flex-row justify-center mb-4 mt-6 gap-x-4">
+                <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
+                <Button onClick={handleDownloadClick}>Download Report</Button>
+              </div>
+              <AnalysisContainer report={selectedReport} />
+          </div>
+          }
           </div>
           </SignedIn>
           <SignedOut>
@@ -51,7 +81,7 @@ const Reports: NextPage = () => {
             </SignInButton>
           </SignedOut>
         </div>
-      </PageLayout>
+        </div>
     </>
   );
 };
@@ -59,39 +89,18 @@ const Reports: NextPage = () => {
 export default Reports;
 
 
-interface FeatureItem {
-  feature: string;
-  analysis: string;
-  source: string;
-}
-
-
-const dummyData: FeatureItem[] = [
-  {
-    feature: 'Lorem',
-    analysis: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-    source: 'Lorem Source',
-  },
-  {
-    feature: 'Ipsum',
-    analysis: 'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-    source: 'Ipsum Source',
-  },
-  {
-    feature: 'Dolor',
-    analysis: 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.',
-    source: 'Dolor Source',
-  },
-];
-
 interface AnalysisContainerProps {
-  features: FeatureItem[]
+  report: (OAReport & {
+    features: FeatureItem[];
+}) | undefined
 }
 
-function AnalysisContainer({features}:AnalysisContainerProps){
+function AnalysisContainer({report}:AnalysisContainerProps){
+  if (report===undefined){return(null)}
   return(
-    <div className="my-4">
-    {features.map((featureItem, index)=>(
+    <div id="capture" className="w-full max-w-xl items-center justify-center flex flex-col">
+    <div className="font-semibold text-xl">{report.title} - {report.date.toLocaleDateString()}</div>
+    {report.features.map((featureItem, index)=>(
       <AnalysisDisplay key={index} item={featureItem} />
     ))}
     </div>
@@ -102,8 +111,8 @@ interface AnalysisDisplayProps {
 }
 function AnalysisDisplay({item}:AnalysisDisplayProps){
   return(
-    <div className="flex flex-col items-start border border-collapse p-2 gap-y-2 my-2">
-      <div className="">Feature: {item.feature}</div>
+    <div className="flex flex-col items-start border bg-gray-100 border-collapse rounded-lg p-2 gap-y-2 my-2">
+      <div className="font-semibold">{item.feature}</div>
       <div className="">Analysis: {item.analysis}</div>
       <div className="text-sm">Source: {item.source}</div>
     </div>
