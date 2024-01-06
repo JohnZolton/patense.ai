@@ -14,6 +14,7 @@ import { pdfjs, Document, Page } from 'react-pdf';
 import PreviousMap from "postcss/lib/previous-map";
 import Dropzone from "react-dropzone";
 import { text } from "stream/consumers";
+import { Button } from "@/components/ui/button";
 
 
 
@@ -77,21 +78,21 @@ const Home: NextPage = () => {
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
+        <div className="h-screen grainy">
         <NavBar />
-        <div className="">
           <SignedIn>
           {appState === AppState.LOAD_DOCUMENTS && (
-          <div>
+          <div className="mx-auto w-full max-w-3xl sm:w-3/4 lg:w-2/5">
             <SpecDropzone setSpecFile={setSpecFile} />
             <SpecDisplay specification={specFile} setSpec={setSpecification} setSpecFile={setSpecFile}/>
             <ReferenceDropZone setRefFile={setRefFiles}/>
             <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
-          <div className="flex justify-center flex-col items-center ">
-          <button 
-            className="bg-gray-900 hover:bg-gray-800 py-4 px-5 border border-dashed"
-            onClick={()=>handleButtonClick()}
-            >Generate Report</button>
-          </div>
+            <div className="flex flex-col justify-center items-center">
+            <Button 
+              className="bg-zinc-600"
+              onClick={()=>handleButtonClick()}
+              >Generate Report</Button>
+            </div>
           </div>
           )}
           {appState === AppState.LOADING && (
@@ -108,7 +109,7 @@ const Home: NextPage = () => {
           <SignedOut>
             {/* Signed out users get sign in button */}
             <SignInButton redirectUrl="home">
-              <button className="rounded-full bg-slate-700 p-3 text-xl  hover:bg-gray-600">
+              <button className="p-3 text-xl rounded-full bg-slate-700 hover:bg-gray-600">
                 Sign In
               </button>
             </SignInButton>
@@ -151,8 +152,8 @@ function LoadDisplay(){
   }, []); // Empty dependency array ensures the effect runs only once
   
   return(
-    <div className="flex flex-col items-center justify-center py-3">
-      <Loader2 className="animate-spin h-10 w-10 items-center justify-center"/>
+    <div className="flex flex-col justify-center items-center py-3">
+      <Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>
       <div>{loadingMessages[currentMessageIndex]}</div>
     </div>
   )
@@ -201,7 +202,7 @@ interface AnalysisDisplayProps {
 }
 function AnalysisDisplay({item}:AnalysisDisplayProps){
   return(
-    <div className="flex flex-col items-start border border-collapse p-2 gap-y-2 my-2">
+    <div className="flex flex-col gap-y-2 items-start p-2 my-2 border border-collapse">
       <div className="">Feature: {item.feature}</div>
       <div className="">Analysis: {item.analysis}</div>
       <div className="text-sm">Source: {item.source}</div>
@@ -286,17 +287,17 @@ function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
   if (specification === undefined){return(null)}
 
   return(
-    <div className="mt-5 mb-10 flex flex-col items-center">
-      <div className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
-          <div className='px-2 pt-1 mt-2 h-full grid place-items-center'>
-            <File className='h-4 w-4 text-blue-500' />
+    <div className="flex flex-col items-center mt-5 mb-10">
+      <div className='max-w-lg bg-gray-400 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
+          <div className='grid place-items-center px-2 pt-1 mt-2 h-full'>
+            <File className='w-4 h-4 text-blue-500' />
           </div>
-          <div className="flex flex-row justify-between w-full items-center gap-x-3 px-2">
-          <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
+          <div className="flex flex-row gap-x-3 justify-between items-center px-2 w-full">
+          <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
             {specification.name}
           </div>
           {isLoading ? 
-            <Loader2 className='h-8 w-8 animate-spin' />:<Check/>}
+            <Loader2 className='w-8 h-8 animate-spin' />:<Check/>}
           <button onClick={handleButtonClick} 
             className="hover:text-red-600"
           >
@@ -377,19 +378,19 @@ function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDispl
   }
 
   return(
-    <div className="my-3 flex flex-col items-center">
+    <div className="flex flex-col items-center my-3">
       {refList.map((refItem, index)=>(
-      <div key={index} className='max-w-lg bg-gray-800 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px] outline-zinc-200  divide-zinc-200 my-3'>
+      <div key={index} className='max-w-lg bg-gray-400 flex items-center flex-col rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-3'>
         <React.Fragment >
-          <div className='px-3 pt-1 mt-2 h-full grid place-items-center'>
-            <File className='h-4 w-4 text-blue-500' />
+          <div className='grid place-items-center px-3 pt-1 mt-2 h-full'>
+            <File className='w-4 h-4 text-blue-500' />
           </div>
-          <div className="flex flex-row justify-between w-full items-center gap-x-3 px-2">
-          <div className='px-3 py-2 h-full  text-sm w-full overflow-hidden truncate'>
+          <div className="flex flex-row gap-x-3 justify-between items-center px-2 w-full">
+          <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
             {refItem.name}
           </div>
           {isLoading ? 
-            <Loader2 className='h-8 w-8 animate-spin' />:<Check/>}
+            <Loader2 className='w-8 h-8 animate-spin' />:<Check/>}
           <button onClick={()=>handleButtonClick(index)}
             className="hover:text-red-600"
           >
@@ -418,16 +419,16 @@ function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
-      <div className="border h-32 m-4 border-dashed border-gray-300 rounded-lg">
+      <div className="m-4 h-32 rounded-lg border border-gray-300 border-dashed">
         <div 
         {...getRootProps()}
-        className="flex items-center justify-center h-full w-full">
+        className="flex justify-center items-center w-full h-full">
           <label 
             htmlFor="dropzone-file"
-            className="flex flex-col items-center justify-center w-full h-full rounded-lg cursor-pointer bg-gray-900 hover:bg-gray-800"
+            className="flex flex-col justify-center items-center w-full h-full bg-gray-400 rounded-lg cursor-pointer hover:bg-gray-500"
           >
-            <div className="flex flex-col items-center justify-center pt-5">Upload All References</div>
-            <Cloud className="h-8 w-8 text-zinc-700"/>
+            <div className="flex flex-col justify-center items-center pt-2">Upload All References</div>
+            <Cloud className="w-8 h-8 text-zinc-700"/>
             <p className='mb-2 text-sm text-zinc-700'>
                   <span className='font-semibold'>Click to upload</span>{' '} or drag and drop
                 </p>
@@ -460,16 +461,16 @@ function SpecDropzone({setSpecFile}: SpecDropzoneProps){
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
-      <div className="border h-32 m-4 border-dashed border-gray-300 rounded-lg">
+      <div className="m-4 h-32 rounded-lg border border-gray-300 border-dashed">
         <div 
         {...getRootProps()}
-        className="flex items-center justify-center h-full w-full">
+        className="flex justify-center items-center w-full h-full">
           <label 
             htmlFor="dropzone-file"
-            className="flex flex-col items-center justify-center w-full h-full rounded-lg cursor-pointer bg-gray-900 hover:bg-gray-800"
+            className="flex flex-col justify-center items-center w-full h-full bg-gray-400 rounded-lg cursor-pointer hover:bg-gray-500"
           >
-            <div className="flex flex-col items-center justify-center pt-5">Upload a Specification</div>
-            <Cloud className="h-8 w-8 text-zinc-700"/>
+            <div className="flex flex-col justify-center items-center pt-2">Upload a Specification</div>
+            <Cloud className="w-8 h-8 text-zinc-700"/>
             <p className='mb-2 text-sm text-zinc-700'>
                   <span className='font-semibold'>
                     Click to upload
