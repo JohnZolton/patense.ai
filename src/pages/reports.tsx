@@ -2,21 +2,15 @@ import { type NextPage } from "next";
 import Head from "next/head";
 import { api } from "~/utils/api";
 
-import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
+import React, { useState, } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check } from 'lucide-react'
-import { v4 } from "uuid";
 import { NavBar } from "~/pages/components/navbar";
-import PageLayout from "~/pages/components/pagelayout";
-import LoadingSpinner from "./components/loadingspinner";
-import PreviousMap from "postcss/lib/previous-map";
-import Dropzone from "react-dropzone";
-import { text } from "stream/consumers";
 import { OAReport, FeatureItem } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
-import ReactPDF, { pdf, Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 
 
@@ -26,9 +20,6 @@ const Reports: NextPage = () => {
     features: FeatureItem[];
 })>()
 
-  //useEffect(() => {
-    //setSelectedReport(undefined)
-  //}, []);
 
   const { data: reports, isLoading: reportsLoading } = api.DocumentRouter.getAllReports.useQuery()
   
