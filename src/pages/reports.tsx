@@ -52,6 +52,9 @@ const Reports: NextPage = () => {
           <div className="flex justify-center flex-col items-center ">
           {reportsLoading && 
       (<Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>)}
+          {(!reportsLoading)&& (reports === undefined || reports.length===0) && (
+            <div>No reports</div>
+          )}
             {(!selectedReport) && reports && reports.map((report, index)=>(
               <button key={index} onClick={()=>handleButtonClick(index)} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">{report.title}</button>
             ))
@@ -60,7 +63,7 @@ const Reports: NextPage = () => {
             <div>
               <div className="flex flex-row justify-center mb-4 mt-6 gap-x-4">
                 <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
-                <Button onClick={void handleDownloadClick()}>Download Report</Button>
+                <Button onClick={()=> (async ()=> await handleDownloadClick())}>Download Report</Button>
               </div>
                 <AnalysisContainer report={selectedReport} />
           </div>
@@ -145,6 +148,13 @@ const pdfStyles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center', // Center content vertically
   },
+  header: {
+    textAlign: 'left',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginTop: 20,
+    marginLeft: 20
+  }
 });
 
 // AnalysisContainer component
@@ -155,6 +165,7 @@ const PDFContainer = ({ report }: AnalysisContainerProps) => {
 
   return (
     <View style={pdfStyles.container}>
+      <Text style={pdfStyles.header}>Patense.ai</Text>
       <Text style={pdfStyles.title}>
         {report.title} - {report.date.toLocaleDateString()}
       </Text>

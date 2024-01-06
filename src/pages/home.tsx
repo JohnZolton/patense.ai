@@ -95,6 +95,7 @@ const Home: NextPage = () => {
               onClick={()=>handleButtonClick()}
               >Generate Report</Button>
             </div>
+            <div className="mt-10 text-center">Only PDFs with recognized text are supported.</div>
           </div>
           )}
           {appState === AppState.LOADING && (
