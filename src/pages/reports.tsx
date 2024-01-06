@@ -69,7 +69,7 @@ const Reports: NextPage = () => {
             <div>
               <div className="flex flex-row justify-center mb-4 mt-6 gap-x-4">
                 <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
-                <Button onClick={handleDownloadClick}>Download Report</Button>
+                <Button onClick={async ()=>handleDownloadClick}>Download Report</Button>
               </div>
                 <AnalysisContainer report={selectedReport} />
           </div>
