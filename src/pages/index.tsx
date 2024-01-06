@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import MaxWidthWrapper from "./components/maxwidthwrapper";
 import { ArrowRight } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 
 
@@ -17,32 +17,38 @@ const Home: NextPage = () => {
         <meta name="description" content="AI Patent Assistant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <div className="grainy">
-      <MaxWidthWrapper className="flex flex-col justify-center items-center mt-32 text-center sm:40">
-        <div className="flex overflow-hidden justify-center items-center px-7 py-2 mx-auto mb-4 space-x-2 bg-white rounded-full border border-gray-200 shadow-md backdrop-blur transition-all max-w-fit hover:border-gray-300 hover:bg-white/50">
+      <div className="h-screen grainy">
+      <MaxWidthWrapper className="flex flex-col justify-center items-center pt-24 text-center sm:w-100">
+        <div className="flex overflow-hidden justify-center items-center px-7 py-2 mx-auto mb-4 space-x-2 bg-white rounded-full border border-gray-200 shadow-md backdrop-blur transition-all hover:border-gray-300 hover:bg-white/50">
           <p className="text-sm font-semibold text-gray-700">
             Patense.ai is now public!
           </p>
         </div>
-          <h1 className="max-w-4xl text-5xl font-bold md:text-6xl lg:text-7xl">
+          <h1 className="mt-4 max-w-4xl text-5xl font-bold md:text-7xl">
             <span className="">Patense.ai</span>
           </h1>
+
           {/* CTA BUTTON */}
-          <div className="my-6">
+          <div className="my-4">
             <SignedOut>
               {/* Signed out users get sign in button */}
               <SignInButton redirectUrl="home">
-                <button 
-                className="flex flex-row items-center p-3 text-xl text-black bg-gray-400 rounded-md hover:bg-gray-300"
-                >
-                  Get Started{' '} <ArrowRight className='ml-2 w-5 h-5'/></button>
+              <Button className="mt-5" size={'lg'}>Get Started{" "}
+              <ArrowRight className='ml-2 w-5 h-5' />
+              </Button>
               </SignInButton>
             </SignedOut>
             <SignedIn>
               <Link
-                className="flex flex-row items-center p-3 text-xl text-black bg-gray-400 rounded-md hover:bg-gray-300"
-                href="home"
-              >Get started{' '} <ArrowRight className='ml-2 w-5 h-5'/></Link>
+              className={buttonVariants({
+                size: 'lg',
+                className: 'mt-5',
+              })}
+              href='home'
+              >
+              Get started{' '}
+              <ArrowRight className='ml-2 w-5 h-5' />
+            </Link>
             </SignedIn>
           </div>
       </MaxWidthWrapper>

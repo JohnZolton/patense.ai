@@ -9,34 +9,33 @@ export const NavBar = () => {
     setIsMenuOpen((prevState) => !prevState);
   }
   return (
-    <div>
-      <nav className="flex items-center justify-between">
-        <SignedIn>
-          <div className={`m-2 flex flex-col text-white`}>
-            <UserButton
-              appearance={{
-                elements: { userButtonAvatarBox: { width: 45, height: 45 } },
-              }}
-            />
-          </div>
-        </SignedIn>
-        <div className={`flex flex-col items-end space-x-6 pr-4 sm:flex-row`}>
+    <>
+        <nav className={`flex justify-end items-center pr-4 space-x-6 sm:flex-row`}>
           <div className="hidden sm:block">
             <NavMenuItems />
           </div>
-        {/* Hamburger menu for mobile */}
+          
+          {/* Hamburger menu for mobile */}
           <div
             onClick={handleMenuToggle}
-            className={`menu-icon mt-2 px-4 hover:cursor-pointer sm:hidden`}
+            className={`px-4 menu-icon hover:cursor-pointer sm:hidden`}
           >
             ☰
           </div>
-        <div className={`sm:hidden ${isMenuOpen ? "block" : "hidden"}`}>
-            <NavMenuItems />
-        </div>
-        </div>
+          <div className={`sm:hidden ${isMenuOpen ? "block" : "hidden"}`}>
+              <NavMenuItems />
+          </div>
+          <SignedIn>
+            <div className={`mt-4`}>
+              <UserButton
+                appearance={{
+                  elements: { userButtonAvatarBox: { width: 45, height: 45 } },
+                }}
+              />
+            </div>
+          </SignedIn>
       </nav>
-    </div>
+    </>
   );
 };
 
@@ -45,12 +44,12 @@ export default NavBar;
 function NavMenuItems() {
   return (
     <ul
-      className={`flex flex-col items-end space-y-1 sm:flex-row sm:gap-x-3`}
+      className={`flex flex-col items-end mt-4 space-y-1 sm:flex-row sm:gap-x-3`}
     >
       <li>
         <Link
           href="home"
-          className="text-slate-300 hover:text-white hover:underline"
+          className="hover:underline"
         >
           Home
         </Link>
@@ -60,7 +59,7 @@ function NavMenuItems() {
       <li>
         <Link
           href="reports"
-          className="text-slate-300 hover:text-white hover:underline"
+          className="hover:underline"
         >
           Reports
         </Link>
@@ -68,7 +67,7 @@ function NavMenuItems() {
       <li>
         <Link
           href="about"
-          className="text-slate-300 hover:text-white hover:underline"
+          className="hover:underline"
         >
           About
         </Link>
