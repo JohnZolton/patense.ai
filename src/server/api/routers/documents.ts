@@ -15,12 +15,9 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "langchain/document";
 import { RetrievalQAChain } from "langchain/chains";
 import { ChatOpenAI } from "langchain/chat_models/openai";
-import { kMaxLength } from "buffer";
-import {ParentDocumentRetriever} from "langchain/retrievers/parent_document"
-import { InMemoryStore } from "langchain/storage/in_memory"
-import { Doc } from "prettier";
 import { TRPCClientError } from "@trpc/client";
 import { TRPCError } from "@trpc/server";
+import Stripe from "stripe";
 
 interface FeatureItem {
   feature: string;
@@ -28,7 +25,126 @@ interface FeatureItem {
   source: string;
 }
 
+const OUR_DOMAIN = 'http://localhost:3001/'
+
 export const documentRouter = createTRPCRouter({
+  
+  testSales: privateProcedure.mutation(async ({ctx})=>{
+    const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true})
+    const stripeSession = await stripe.checkout.sessions.create({
+      line_items:[
+        {
+          price: process.env.STRIPE_TEST_API_ID ?? '',
+          quantity: 1,
+        }
+      ],
+      mode: "payment",
+      success_url: `${OUR_DOMAIN}/home`,
+      cancel_url: `${OUR_DOMAIN}/home`,
+      automatic_tax: {enabled:true},
+    })
+    console.log(stripeSession)
+    return stripeSession.url
+  }),
+  
+  getFile:privateProcedure.input(
+    z.object({key: z.string()})
+  ).mutation(async ({ctx, input})=>{
+    const file = await ctx.prisma.uploadFile.findFirst({
+      where: {
+        key:input.key,
+        userId: ctx.userId
+      }
+    })
+    if (!file){
+      throw new TRPCError({code: "NOT_FOUND"})
+    }
+    return file
+  }),
+
+  saveDocsAndSendStripe: privateProcedure.input(
+    z.object({
+      spec: z.object({
+        fileName: z.string(),
+        fileContent: z.string(),
+      }),
+      references: z.array(
+        z.object({
+        fileName: z.string(),
+        fileContent: z.string(),
+      })),
+    })
+   )
+   .mutation(async ({ ctx, input})=>{
+    console.log(ctx.userId)
+    console.log("spec: ", input.spec.fileName)
+    console.log("references: ", input.references.length)
+
+    const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true})
+    const stripeSession = await stripe.checkout.sessions.create({
+      line_items:[
+        {
+          price: process.env.STRIPE_TEST_API_ID ?? '',
+          quantity: 1,
+        }
+      ],
+      mode: "payment",
+      success_url: `${OUR_DOMAIN}/report/{CHECKOUT_SESSION_ID}`,
+      cancel_url: `${OUR_DOMAIN}/home`,
+      automatic_tax: {enabled:true},
+    })
+    console.log(stripeSession)
+    
+    const createdJob = await ctx.prisma.job.create({
+      data:{
+        userId:ctx.userId,
+        stripeTxId: stripeSession.id,
+        refs: {
+          create: input.references.map((reference)=>({
+            userId: ctx.userId,
+            title: reference.fileName
+          }))
+        },
+        spec: {
+          create: {
+            title: input.spec.fileName,
+            userId: ctx.userId
+          }
+        }
+      },
+    })
+    return stripeSession.url
+  }),
+  
+  startProcessingJob: privateProcedure.input(
+    z.object({
+      sessionId: z.string()
+    })
+  ).mutation(async ({ctx, input})=>{
+    console.log("session ID: ", input.sessionId)
+    console.log(ctx)
+    
+    // get doc from job
+    const job = await ctx.prisma.oAReport.findFirst({
+      where: {
+        stripeTxId: input.sessionId
+      },
+    })
+    console.log("query completed")
+    if (!job){
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Failed to find checkout session"
+      })
+    }
+    if (job !== undefined && job !==null){
+      console.log("completion: ", job.completed)
+    } else {
+      console.log("no job found")
+    }
+    return job
+  }),
+  
   
   getAllReports: privateProcedure.query(async ({ctx})=>{
     const reports = await ctx.prisma.oAReport.findMany({

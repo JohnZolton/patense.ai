@@ -5,21 +5,26 @@ import { api } from "~/utils/api";
 import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check } from 'lucide-react'
-import { v4 } from "uuid";
+import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check, Ban } from 'lucide-react'
 import { NavBar } from "~/pages/components/navbar";
-import PageLayout from "~/pages/components/pagelayout";
-import LoadingSpinner from "./components/loadingspinner";
-import { pdfjs, Document, Page } from 'react-pdf';
-import PreviousMap from "postcss/lib/previous-map";
+import { pdfjs } from 'react-pdf';
 import Dropzone from "react-dropzone";
-import { text } from "stream/consumers";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useUploadThing } from "~/utils/uploadthing";
+import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/components/ui/use-toast";
+
+import PDFDocument from 'pdf-lib';
+import { doc } from "prettier";
 
 
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-
+enum DocState {
+  LOADING = 'LOADING',
+  FAILED = 'FAILED',
+  SUCCESS = 'SUCCESS',
+}
 enum AppState {
   LOAD_DOCUMENTS = 'LOAD_DOCUMENTS',
   LOADING = 'LOADING',
@@ -33,6 +38,7 @@ const Home: NextPage = () => {
   const [specFile, setSpecFile] = useState<File>();
   const [resultData, setResultData] = useState<FeatureItem[]>([])
   const [appState, setAppState] = useState<AppState>(AppState.LOAD_DOCUMENTS);
+  const [specLoading, setSpecLoading]=useState(false)
 
   useEffect(() => {
     console.log('refFiles changed:', refFiles);
@@ -70,6 +76,39 @@ const Home: NextPage = () => {
       }
     }
   )
+  const { mutate: makeStripeCheckout } = api.DocumentRouter.saveDocsAndSendStripe.useMutation(
+    {
+      onSuccess: (url)=>{
+        window.location.href=url ?? '/home'
+      }
+    }
+  )
+  const handleStripeButtonClick = () => {
+    if (specification && references.length>0){
+      const result = makeStripeCheckout({
+        spec: specification,
+        references: references
+    })
+    } else {
+      console.log('Error, no refs')
+    }
+  }
+  const {toast}=useToast()
+  
+  const {startUpload}= useUploadThing("pdfUploader")
+  const {mutate:startPolling}=api.DocumentRouter.getFile.useMutation(
+    {
+      onSuccess: (file)=>{
+        console.log(file)
+        setSpecLoading(false)
+      },
+      retry: true,
+      retryDelay: 500,
+    }
+  )
+  const handleUploadButton =async ()=>{
+
+  }
   
   return (
     <>
@@ -80,11 +119,12 @@ const Home: NextPage = () => {
       </Head>
         <div className="h-screen grainy">
         <NavBar />
+        <Toaster/>
           <SignedIn>
           {appState === AppState.LOAD_DOCUMENTS && (
           <div className="mx-auto w-full max-w-3xl sm:w-3/4 lg:w-2/5">
             <SpecDropzone setSpecFile={setSpecFile} />
-            <SpecDisplay specification={specFile} setSpec={setSpecification} setSpecFile={setSpecFile}/>
+            <SpecDisplay specification={specFile} specLoading={specLoading} setSpec={setSpecification} setSpecFile={setSpecFile}/>
             <ReferenceDropZone setRefFile={setRefFiles}/>
             <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
             <div className="flex flex-col justify-center items-center">
@@ -94,6 +134,12 @@ const Home: NextPage = () => {
               })}
               onClick={()=>handleButtonClick()}
               >Generate Report</Button>
+            <Button 
+              className={buttonVariants({
+                variant:"default"
+              })}
+              onClick={()=>handleUploadButton()}
+              >Test Uploadthing</Button>
             </div>
             <div className="mt-10 text-center">Only PDFs with recognized text are supported.</div>
           </div>
@@ -168,25 +214,6 @@ interface FeatureItem {
   source: string;
 }
 
-
-const dummyData: FeatureItem[] = [
-  {
-    feature: 'Lorem',
-    analysis: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-    source: 'Lorem Source',
-  },
-  {
-    feature: 'Ipsum',
-    analysis: 'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-    source: 'Ipsum Source',
-  },
-  {
-    feature: 'Dolor',
-    analysis: 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.',
-    source: 'Dolor Source',
-  },
-];
-
 interface AnalysisContainerProps {
   features: FeatureItem[]
 }
@@ -227,60 +254,60 @@ interface TextItem {
 interface SpecDisplayProps{
   specification: File | undefined;
   setSpec: Dispatch<SetStateAction<{fileName:string; fileContent:string}|undefined>>;
-  setSpecFile: React.Dispatch<React.SetStateAction<File | undefined>>
+  setSpecFile: React.Dispatch<React.SetStateAction<File | undefined>>;
+  specLoading: Boolean;
 }
-function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
+function SpecDisplay({specification, specLoading, setSpec, setSpecFile}: SpecDisplayProps){
   const [loadedSpec, setLoadedSpec] = useState<{ fileName: string; fileContent: string }>();
-  const [isLoading, setIsLoading] = useState(true)
+  const [docState, setDocState] = useState<DocState>(DocState.LOADING)
 
+  const {toast}=useToast()
   useEffect(() => {
-    const loadSpecification = async () => {
-          try {
-            if (specification === undefined){return(null)}
-
-            const result = await handlePDFLoaded(specification);
-            console.log("loaded: ", result)
-            if (result !== undefined){
-              setSpec(result)
-            }
-            return result;
-          } catch (error) {
-            console.error('Error loading PDF:', error);
-            return null;
-          }
-    };
-
-    void loadSpecification();
-    setIsLoading(true)
+    setDocState(DocState.LOADING)
+    if (specification){
+      const handleSpecChange = async () =>{
+        const res = await startUpload([specification])
+        if (!res){
+          return toast({
+            title:"Something went wrong",
+            description:"Please try again later",
+            variant: 'destructive'
+          })
+        } 
+        const [fileResponse]=res
+        const key = fileResponse?.key
+        console.log("Key: ", key)
+        if (!key){
+          return toast({
+            title:"Something went wrong",
+            description:"Please try again later",
+            variant: 'destructive'
+          })
+        }
+        startPolling({key:key})
+      }
+      void handleSpecChange()
+      }
   }, [specification, setSpec]);
   useEffect(()=>{
     console.log(loadedSpec)
   },[loadedSpec])
 
-  const handlePDFLoaded = async (file: File) => {
-    try {
-      const buffer = await file.arrayBuffer();
-      const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
-
-      const loadingTask = pdfjs.getDocument({ url: dataUrl });
-      const pdf = await loadingTask.promise;
-
-      let fullText = '';
-
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-        const pageText:string = textContent.items.map((item) => (item as TextItem).str).join('');
-        //const pageText = textContent.items.map((item) => item.str).join('');
-        fullText += pageText + '\n'; 
-      }
-
-      setIsLoading(false)
-      return({fileName: file.name, fileContent: fullText})
-    } catch (error) {
-      console.error('Error loading PDF:', error);
+  const {startUpload}= useUploadThing("pdfUploader")
+  const {mutate:startPolling}=api.DocumentRouter.getFile.useMutation(
+    {
+      onSuccess: (file)=>{
+        console.log(file)
+        if (file.uploadStatus==='SUCCESS'){
+          setDocState(DocState.SUCCESS)
+        } else {
+          setDocState(DocState.FAILED)
+        }
+      },
+      retry: true,
+      retryDelay: 500,
     }
-  };
+  )
   
   function handleButtonClick(){
     setSpecFile(undefined)
@@ -292,6 +319,7 @@ function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
   return(
     <div className="flex flex-col items-center">
       <div className='max-w-2xl w-full bg-gray-100 flex items-center justify-center flex-row rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200'>
+      <Toaster/>
           <div className=''>
             <File className='w-4 h-4 ml-2 text-black' />
           </div>
@@ -299,8 +327,9 @@ function SpecDisplay({specification, setSpec, setSpecFile}: SpecDisplayProps){
           <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
             {specification.name}
           </div>
-          {isLoading ? 
-            <Loader2 className='w-8 h-8 animate-spin' />:<Check/>}
+          {(docState === DocState.LOADING) && <Loader2 className='w-8 h-8 animate-spin' />}
+          {(docState === DocState.FAILED) && <Ban className='text-red-500 w-8 h-8'/>}
+          {(docState === DocState.SUCCESS) && <Check className='text-green-500 w-8 h-8' />}
           <button onClick={handleButtonClick} 
             className="hover:text-red-600"
           >
@@ -326,17 +355,11 @@ function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDispl
       const loadedRefs = await Promise.all(
         refList.map(async (refItem) => {
           try {
-            const result = await handlePDFLoaded(refItem);
-            console.log("loaded: ", result)
-            return result;
           } catch (error) {
-            console.error('Error loading PDF:', error);
-            return null;
           }
         })
       );
-
-      setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileContent: string }>);
+      //setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileContent: string }>);
     };
     void loadReferences();
     setIsLoading(true)
@@ -347,32 +370,6 @@ function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDispl
     setProcessedRefs(loadedReferences)
   },[loadedReferences, setProcessedRefs])
   
-  const handlePDFLoaded = async (file: File) => {
-    try {
-      const buffer = await file.arrayBuffer();
-      const dataUrl = `data:application/pdf;base64,${Buffer.from(buffer).toString('base64')}`;
-
-      const loadingTask = pdfjs.getDocument({ url: dataUrl });
-      const pdf = await loadingTask.promise;
-
-      let fullText = '';
-
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-        const pageText:string = textContent.items.map((item) => (item as TextItem).str).join('');
-        fullText += pageText + '\n'; // Add a newline between pages if you want
-      }
-
-      setIsLoading(false)
-      return({fileName: file.name, fileContent: fullText})
-    } catch (error) {
-      console.error('Error loading PDF:', error);
-      // put a toast thing here
-      const filteredList = refList.filter(currentFile=>file!==currentFile)
-      setRefList(filteredList)
-    }
-  };
   if (refList.length ===0){return(null)}
   
   function handleButtonClick(indexToRemove:number){
