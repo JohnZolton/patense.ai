@@ -70,7 +70,7 @@ model OAReport {
   completed Boolean @default(false)
   orderTime DateTime @default(now())
   userID   String
-  title String
+  specKey String
   features FeatureItem[]
   files Reference[]
   @@index([userID, stripeTxId])
@@ -104,12 +104,8 @@ model UploadFile {
 }
 model Reference {
   id        String      @id @default(cuid())
-  title     String
   reportId  Int
   userId  String
-  uploadStatus UploadStatus @default(PENDING)
-  isSpec Boolean @default(false)
-  url String
   key String
   report    OAReport @relation(fields: [reportId], references: [id])
   @@index([reportId, userId])

@@ -14,9 +14,6 @@ import { useUploadThing } from "~/utils/uploadthing";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 
-import PDFDocument from 'pdf-lib';
-import { doc } from "prettier";
-
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
@@ -30,43 +27,20 @@ enum AppState {
   LOADING = 'LOADING',
   SHOW_RESULTS = 'SHOW_RESULTS',
 }
+  
+interface UserFile {
+  upFile: File,
+  loadstate: DocState,
+  key?: string
+}
 
 const Home: NextPage = () => {
-  const [specification, setSpecification] = useState<{fileName:string; fileContent:string}>();
-  const [references, setReferences] = useState<{fileName:string; fileContent:string}[]>([]);
-  const [refFiles, setRefFiles] = useState<File[]>([]);
-  const [specFile, setSpecFile] = useState<File>();
+  const [refFiles, setRefFiles] = useState<UserFile[]>([]);
+  const [specFile, setSpecFile] = useState<UserFile>();
   const [resultData, setResultData] = useState<FeatureItem[]>([])
   const [appState, setAppState] = useState<AppState>(AppState.LOAD_DOCUMENTS);
   const [specLoading, setSpecLoading]=useState(false)
 
-  useEffect(() => {
-    console.log('refFiles changed:', refFiles);
-  }, [refFiles]);
-  useEffect(() => {
-    console.log('specfiles changed:', specFile);
-  }, [specFile]);
-  
-  useEffect(()=>{
-    console.log("Spec: ", specification)
-  }, [specification])
-  useEffect(()=>{
-    console.log("References: ", references)
-  }, [references])
-
-  const handleButtonClick = () => {
-    if (specification && references.length>0){
-      console.log('good to go')
-      setAppState(AppState.LOADING)
-      const result = sendDocsToBackend({
-        spec: specification,
-        references: references
-    })
-    console.log(result)
-    } else {
-      console.log('Error, no refs')
-    }
-  }
   
   const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation(
     {
@@ -83,32 +57,34 @@ const Home: NextPage = () => {
       }
     }
   )
-  const handleStripeButtonClick = () => {
-    if (specification && references.length>0){
-      const result = makeStripeCheckout({
-        spec: specification,
-        references: references
-    })
-    } else {
-      console.log('Error, no refs')
-    }
+  const handleButtonClick = () => {
+    if (
+      specFile &&
+      specFile.loadstate===DocState.SUCCESS &&
+      refFiles.every((refFile)=> refFile.loadstate===DocState.SUCCESS)&&
+      refFiles.every((refFile)=> refFile.key!==undefined)
+      )
+      {
+        const referenceKeys = refFiles.map((refFile)=>refFile.key)
+        if (
+          specFile.key !==undefined &&
+          referenceKeys !== undefined &&
+          referenceKeys.length > 0 &&
+          referenceKeys.every((ref)=>ref!==undefined)
+        ){
+        const result = makeStripeCheckout({
+          spec:{
+            key: specFile.key
+          },
+          references: referenceKeys as string[]
+        })
+      }
+      } else {
+        console.log('Error, no refs')
+      }
   }
   const {toast}=useToast()
   
-  const {startUpload}= useUploadThing("pdfUploader")
-  const {mutate:startPolling}=api.DocumentRouter.getFile.useMutation(
-    {
-      onSuccess: (file)=>{
-        console.log(file)
-        setSpecLoading(false)
-      },
-      retry: true,
-      retryDelay: 500,
-    }
-  )
-  const handleUploadButton =async ()=>{
-
-  }
   
   return (
     <>
@@ -124,9 +100,9 @@ const Home: NextPage = () => {
           {appState === AppState.LOAD_DOCUMENTS && (
           <div className="mx-auto w-full max-w-3xl sm:w-3/4 lg:w-2/5">
             <SpecDropzone setSpecFile={setSpecFile} />
-            <SpecDisplay specification={specFile} specLoading={specLoading} setSpec={setSpecification} setSpecFile={setSpecFile}/>
+            <SpecDisplay specification={specFile} setSpecFile={setSpecFile}/>
             <ReferenceDropZone setRefFile={setRefFiles}/>
-            <ReferenceDisplay refList={refFiles} setRefList={setRefFiles} setProcessedRefs={setReferences} />
+            <ReferenceContainer refList={refFiles} setRefList={setRefFiles}/>
             <div className="flex flex-col justify-center items-center">
             <Button 
               className={buttonVariants({
@@ -134,12 +110,6 @@ const Home: NextPage = () => {
               })}
               onClick={()=>handleButtonClick()}
               >Generate Report</Button>
-            <Button 
-              className={buttonVariants({
-                variant:"default"
-              })}
-              onClick={()=>handleUploadButton()}
-              >Test Uploadthing</Button>
             </div>
             <div className="mt-10 text-center">Only PDFs with recognized text are supported.</div>
           </div>
@@ -252,21 +222,16 @@ interface TextItem {
 
 
 interface SpecDisplayProps{
-  specification: File | undefined;
-  setSpec: Dispatch<SetStateAction<{fileName:string; fileContent:string}|undefined>>;
-  setSpecFile: React.Dispatch<React.SetStateAction<File | undefined>>;
-  specLoading: Boolean;
+  specification: UserFile | undefined;
+  setSpecFile: React.Dispatch<React.SetStateAction<UserFile | undefined>>;
 }
-function SpecDisplay({specification, specLoading, setSpec, setSpecFile}: SpecDisplayProps){
-  const [loadedSpec, setLoadedSpec] = useState<{ fileName: string; fileContent: string }>();
-  const [docState, setDocState] = useState<DocState>(DocState.LOADING)
+function SpecDisplay({specification, setSpecFile}: SpecDisplayProps){
 
   const {toast}=useToast()
   useEffect(() => {
-    setDocState(DocState.LOADING)
     if (specification){
       const handleSpecChange = async () =>{
-        const res = await startUpload([specification])
+        const res = await startUpload([specification.upFile])
         if (!res){
           return toast({
             title:"Something went wrong",
@@ -288,20 +253,21 @@ function SpecDisplay({specification, specLoading, setSpec, setSpecFile}: SpecDis
       }
       void handleSpecChange()
       }
-  }, [specification, setSpec]);
-  useEffect(()=>{
-    console.log(loadedSpec)
-  },[loadedSpec])
+  }, [specification]);
 
   const {startUpload}= useUploadThing("pdfUploader")
   const {mutate:startPolling}=api.DocumentRouter.getFile.useMutation(
     {
       onSuccess: (file)=>{
         console.log(file)
-        if (file.uploadStatus==='SUCCESS'){
-          setDocState(DocState.SUCCESS)
+        if (file.uploadStatus==='SUCCESS' && specification){
+          const newSpec:UserFile = {upFile: specification.upFile, loadstate: DocState.SUCCESS, key: file.key}
+          setSpecFile(newSpec)
         } else {
-          setDocState(DocState.FAILED)
+          if (specification){
+            const newSpec:UserFile = {upFile: specification.upFile, loadstate: DocState.FAILED}
+            setSpecFile(newSpec)
+          }
         }
       },
       retry: true,
@@ -311,7 +277,6 @@ function SpecDisplay({specification, specLoading, setSpec, setSpecFile}: SpecDis
   
   function handleButtonClick(){
     setSpecFile(undefined)
-    setSpec(undefined)
   }
 
   if (specification === undefined){return(null)}
@@ -325,11 +290,11 @@ function SpecDisplay({specification, specLoading, setSpec, setSpecFile}: SpecDis
           </div>
           <div className="flex flex-row gap-x-3 justify-between items-center px-2 w-full">
           <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
-            {specification.name}
+            {specification.upFile.name}
           </div>
-          {(docState === DocState.LOADING) && <Loader2 className='w-8 h-8 animate-spin' />}
-          {(docState === DocState.FAILED) && <Ban className='text-red-500 w-8 h-8'/>}
-          {(docState === DocState.SUCCESS) && <Check className='text-green-500 w-8 h-8' />}
+          {(specification.loadstate === DocState.LOADING) && <Loader2 className='w-8 h-8 animate-spin' />}
+          {(specification.loadstate === DocState.FAILED) && <Ban className='text-red-500 w-8 h-8'/>}
+          {(specification.loadstate === DocState.SUCCESS) && <Check className='text-green-500 w-8 h-8' />}
           <button onClick={handleButtonClick} 
             className="hover:text-red-600"
           >
@@ -341,71 +306,116 @@ function SpecDisplay({specification, specLoading, setSpec, setSpecFile}: SpecDis
     </div>
     )
 }
-interface ReferenceDisplayProps{
-  refList: File[];
-  setRefList: Dispatch<SetStateAction<File[]>>
-  setProcessedRefs: Dispatch<SetStateAction<Array<{fileName:string; fileContent:string}>>>;
+interface ReferenceContainerProps{
+  refList: UserFile[];
+  setRefList: Dispatch<SetStateAction<UserFile[]>>
 }
-function ReferenceDisplay({refList, setRefList, setProcessedRefs}:ReferenceDisplayProps){
-  const [loadedReferences, setLoadedReferences] = useState<Array<{ fileName: string; fileContent: string }>>([]);
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const loadReferences = async () => {
-      const loadedRefs = await Promise.all(
-        refList.map(async (refItem) => {
-          try {
-          } catch (error) {
-          }
-        })
-      );
-      //setLoadedReferences(loadedRefs.filter((result) => result !== null) as Array<{ fileName: string; fileContent: string }>);
-    };
-    void loadReferences();
-    setIsLoading(true)
-  }, [refList]);
-
-  useEffect(()=>{
-    console.log("loaded refs: " , loadedReferences)
-    setProcessedRefs(loadedReferences)
-  },[loadedReferences, setProcessedRefs])
+function ReferenceContainer({refList, setRefList}:ReferenceContainerProps){
   
   if (refList.length ===0){return(null)}
   
-  function handleButtonClick(indexToRemove:number){
+  function removeItem(indexToRemove:number){
     const updatedRefList = refList.filter((_, index) => index !== indexToRemove);
     setRefList(updatedRefList)
+  }
+  
+  function updateRefList(file: UserFile, idx: number){
+    const updatedRefs = [...refList.slice(0,idx), file, ...refList.slice(idx+1)]
+    setRefList(updatedRefs)
   }
 
   return(
     <div className="flex flex-col items-center">
       {refList.map((refItem, index)=>(
-      <div key={index} className='max-w-2xl w-full bg-gray-100 flex items-center flex-row justify-center rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-2'>
-        <React.Fragment >
-          <div className=''>
-            <File className='w-4 h-4 ml-2 text-black' />
-          </div>
-          <div className="flex flex-row gap-x-2 justify-between items-center px-2 w-full">
-          <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
-            {refItem.name}
-          </div>
-          {isLoading ? 
-            <Loader2 className='w-8 h-8 animate-spin' />:<Check/>}
-          <button onClick={()=>handleButtonClick(index)}
-            className="hover:text-red-600"
-          >
-            <Trash2 />
-          </button>
-          </div>
-        </React.Fragment>
-      </div>
+        <RefereceDisplay key={index} updateRefList={updateRefList} removeItem={removeItem} reference={refItem} idx={index} setRefList={setRefList}/>
       ))}
     </div>
     )
 }
 
+interface ReferenceDisplayProps{
+  reference: UserFile,
+  idx: number,
+  setRefList: Dispatch<SetStateAction<UserFile[]>>,
+  updateRefList(file: UserFile, idx: number): void
+  removeItem(indexToRemove: number): void
+}
+function RefereceDisplay({reference, idx, setRefList, removeItem, updateRefList}:ReferenceDisplayProps){
+  const {toast}=useToast()
+  useEffect(() => {
+    if (reference && reference.loadstate===DocState.LOADING){
+      const handleRefChange = async () =>{
+        const res = await startUpload([reference.upFile])
+        if (!res){
+          return toast({
+            title:"Something went wrong",
+            description:"Please try again later",
+            variant: 'destructive'
+          })
+        } 
+        const [fileResponse]=res
+        const key = fileResponse?.key
+        console.log("Key: ", key)
+        if (!key){
+          return toast({
+            title:"Something went wrong",
+            description:"Please try again later",
+            variant: 'destructive'
+          })
+        }
+        startPolling({key:key})
+      }
+      void handleRefChange()
+      }
+  }, [reference]);
+
+  useEffect(()=>{
+    console.log(reference)
+  },[reference])
+
+  const {startUpload}= useUploadThing("pdfUploader")
+  const {mutate:startPolling}=api.DocumentRouter.getFile.useMutation(
+    {
+      onSuccess: (file)=>{
+        console.log(file)
+        if (file.uploadStatus==='SUCCESS'){
+          const newRef:UserFile = {upFile: reference.upFile, loadstate: DocState.SUCCESS, key:file.key}
+          updateRefList(newRef,idx)
+        } else {
+          const newRef:UserFile = {upFile: reference.upFile, loadstate: DocState.FAILED}
+          updateRefList(newRef,idx)
+        }
+      },
+      retry: true,
+      retryDelay: 500,
+    }
+  )
+  return (
+      <div className='max-w-2xl w-full bg-gray-100 flex items-center flex-row justify-center rounded-md overflow-hidden outline outline-[1px]   divide-zinc-200 my-2'>
+      <Toaster/>
+          <div className=''>
+            <File className='w-4 h-4 ml-2 text-black' />
+          </div>
+          <div className="flex flex-row gap-x-2 justify-between items-center px-2 w-full">
+          <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
+            {reference.upFile.name}
+          </div>
+          {(reference.loadstate === DocState.LOADING) && <Loader2 className='w-8 h-8 animate-spin' />}
+          {(reference.loadstate === DocState.FAILED) && <Ban className='text-red-500 w-8 h-8'/>}
+          {(reference.loadstate === DocState.SUCCESS) && <Check className='text-green-500 w-8 h-8' />}
+          <button onClick={()=>removeItem(idx)}
+            className="hover:text-red-600"
+          >
+            <Trash2 />
+          </button>
+          </div>
+      </div>
+  )
+}
+
+
 interface ReferenceDropZoneProps {
-  setRefFile: Dispatch<SetStateAction<File[]>>
+  setRefFile: Dispatch<SetStateAction<UserFile[]>>
 }
 function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
   return(
@@ -413,9 +423,13 @@ function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
 
     <Dropzone 
       multiple={true}
-      onDrop={(acceptedFile)=>{
-        console.log("new file: ",acceptedFile)
-        setRefFile((prevFiles)=>[...prevFiles, ...acceptedFile])
+      onDrop={(acceptedFiles)=>{
+        const newFiles: UserFile[]= acceptedFiles.map((file)=>({
+          upFile: file,
+          loadstate: DocState.LOADING
+        }))
+
+        setRefFile((prevFiles)=>[...prevFiles, ...newFiles])
       }}
     >
     {({getRootProps, getInputProps, acceptedFiles})=>(
@@ -447,16 +461,20 @@ function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
   )
 }
 interface SpecDropzoneProps {
-  setSpecFile: Dispatch<SetStateAction<File | undefined>>
+  setSpecFile: React.Dispatch<React.SetStateAction<UserFile | undefined>>
 }
 function SpecDropzone({setSpecFile}: SpecDropzoneProps){
   return(
     <Dropzone 
       multiple={false}
-      onDrop={(acceptedFile)=>{
-        console.log(acceptedFile)
-        if (acceptedFile.length > 0){
-          setSpecFile(acceptedFile[0])
+      onDrop={(acceptedFiles)=>{
+        console.log(acceptedFiles)
+        if (acceptedFiles.length > 0 && acceptedFiles[0]!==undefined){
+        const newFile: UserFile = {
+          upFile: acceptedFiles[0],
+          loadstate: DocState.LOADING,
+        }
+          setSpecFile(newFile)
         }
       }}
     >

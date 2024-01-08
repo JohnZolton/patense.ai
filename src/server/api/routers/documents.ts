@@ -65,19 +65,16 @@ export const documentRouter = createTRPCRouter({
   saveDocsAndSendStripe: privateProcedure.input(
     z.object({
       spec: z.object({
-        fileName: z.string(),
-        fileContent: z.string(),
+        key: z.string(),
       }),
       references: z.array(
-        z.object({
-        fileName: z.string(),
-        fileContent: z.string(),
-      })),
+        z.string(),
+      ),
     })
    )
    .mutation(async ({ ctx, input})=>{
     console.log(ctx.userId)
-    console.log("spec: ", input.spec.fileName)
+    console.log("spec: ", input.spec.key)
     console.log("references: ", input.references.length)
 
     const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true})
@@ -95,24 +92,20 @@ export const documentRouter = createTRPCRouter({
     })
     console.log(stripeSession)
     
-    const createdJob = await ctx.prisma.job.create({
+    const createdJob = await ctx.prisma.oAReport.create({
       data:{
-        userId:ctx.userId,
+        userID:ctx.userId,
         stripeTxId: stripeSession.id,
-        refs: {
+        specKey: input.spec.key,
+        files: {
           create: input.references.map((reference)=>({
             userId: ctx.userId,
-            title: reference.fileName
+            key: reference
           }))
         },
-        spec: {
-          create: {
-            title: input.spec.fileName,
-            userId: ctx.userId
-          }
-        }
       },
     })
+    console.log(createdJob)
     return stripeSession.url
   }),
   
@@ -303,7 +296,6 @@ export const documentRouter = createTRPCRouter({
     await ctx.prisma.oAReport.create({
       data:{
         userID:ctx.userId,
-        title: input.spec.fileName,
         features: {
           create: analysisArray.map((feature)=>({
             feature: feature.feature,
