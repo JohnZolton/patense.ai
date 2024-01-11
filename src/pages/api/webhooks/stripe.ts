@@ -212,7 +212,6 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
           }
         }
       })
-      //bc2ba89e-1caa-472a-acce-9d6d71c9032d
 
       await pineconeIndex.namespace(session.metadata.userId).deleteAll()
       
@@ -231,7 +230,9 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
+/* eslint-disable */
 export default cors(webhookHandler as any);
+/* eslint-enable*/
 
 function makeChunks(text:string, length:number){
   console.log("text length: ", text.length)
