@@ -31,7 +31,8 @@ enum AppState {
 interface UserFile {
   upFile: File,
   loadstate: DocState,
-  key?: string
+  key?: string,
+  title?: string
 }
 
 const Home: NextPage = () => {
@@ -39,17 +40,8 @@ const Home: NextPage = () => {
   const [specFile, setSpecFile] = useState<UserFile>();
   const [resultData, setResultData] = useState<FeatureItem[]>([])
   const [appState, setAppState] = useState<AppState>(AppState.LOAD_DOCUMENTS);
-  const [specLoading, setSpecLoading]=useState(false)
 
   
-  const { mutate: sendDocsToBackend } = api.DocumentRouter.AnalyzeDocs.useMutation(
-    {
-      onSuccess: (data)=>{
-        setResultData(data)
-        setAppState(AppState.SHOW_RESULTS)
-      }
-    }
-  )
   const { mutate: makeStripeCheckout } = api.DocumentRouter.saveDocsAndSendStripe.useMutation(
     {
       onSuccess: (url)=>{
@@ -57,26 +49,33 @@ const Home: NextPage = () => {
       }
     }
   )
+
   const handleButtonClick = () => {
     if (
       specFile &&
       specFile.loadstate===DocState.SUCCESS &&
       refFiles.every((refFile)=> refFile.loadstate===DocState.SUCCESS)&&
-      refFiles.every((refFile)=> refFile.key!==undefined)
+      refFiles.every((refFile)=> refFile.key!==undefined) &&
+      refFiles.every((refFile)=> refFile.title!==undefined)
       )
       {
-        const referenceKeys = refFiles.map((refFile)=>refFile.key)
+        const referenceKeys = refFiles.map((refFile)=>({
+          key: refFile.key as string,
+          title: refFile.title!==undefined ? refFile.title: "none"
+        }))
         if (
           specFile.key !==undefined &&
           referenceKeys !== undefined &&
           referenceKeys.length > 0 &&
-          referenceKeys.every((ref)=>ref!==undefined)
+          referenceKeys.every((ref)=>((ref.key!==undefined) && (ref.title!==undefined)))
         ){
+          console.log(referenceKeys)
         const result = makeStripeCheckout({
           spec:{
-            key: specFile.key
+            key: specFile.key,
+            title: specFile.title ?? "none"
           },
-          references: referenceKeys as string[]
+          references: referenceKeys
         })
       }
       } else {
@@ -288,7 +287,7 @@ function SpecDisplay({specification, setSpecFile}: SpecDisplayProps){
           <div className=''>
             <File className='w-4 h-4 ml-2 text-black' />
           </div>
-          <div className="flex flex-row gap-x-3 justify-between items-center px-2 w-full">
+          <div className="flex flex-row gap-x-2 justify-between items-center px-2 w-full">
           <div className='overflow-hidden px-3 py-2 w-full h-full text-sm truncate'>
             {specification.upFile.name}
           </div>
@@ -379,7 +378,7 @@ function RefereceDisplay({reference, idx, setRefList, removeItem, updateRefList}
       onSuccess: (file)=>{
         console.log(file)
         if (file.uploadStatus==='SUCCESS'){
-          const newRef:UserFile = {upFile: reference.upFile, loadstate: DocState.SUCCESS, key:file.key}
+          const newRef:UserFile = {upFile: reference.upFile, loadstate: DocState.SUCCESS, key:file.key, title:file.title}
           updateRefList(newRef,idx)
         } else {
           const newRef:UserFile = {upFile: reference.upFile, loadstate: DocState.FAILED}

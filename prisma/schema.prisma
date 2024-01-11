@@ -64,12 +64,13 @@ model VerificationToken {
 
 
 model OAReport {
-  id       Int       @id @default(autoincrement())
+  id       String       @id @default(uuid()) @unique
   date     DateTime  @default(now())
-  stripeTxId  String @unique
+  stripeTxId  String? @unique
   completed Boolean @default(false)
   orderTime DateTime @default(now())
   userID   String
+  title String
   specKey String
   features FeatureItem[]
   files Reference[]
@@ -81,7 +82,7 @@ model FeatureItem {
   feature  String @db.MediumText()
   analysis String @db.LongText()
   source   String @db.MediumText()
-  reportID Int  // Foreign key relationship with the Analysis model
+  reportID String  // Foreign key relationship with the Analysis model
   oaReport OAReport @relation(fields: [reportID], references: [id])
   @@index([reportID])
 }
@@ -104,7 +105,8 @@ model UploadFile {
 }
 model Reference {
   id        String      @id @default(cuid())
-  reportId  Int
+  reportId  String
+  title String
   userId  String
   key String
   report    OAReport @relation(fields: [reportId], references: [id])
