@@ -29,11 +29,6 @@ const config = {
       },
     ],
     "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-    "@typescript-eslint/ban-ts-ignore": 0,
-    '@typescript-eslint/ban-ts-comment': [
-      'error',
-      {'ts-ignore': 'allow-with-description'},
-    ],
   },
 };
 
