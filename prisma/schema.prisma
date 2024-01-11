@@ -64,12 +64,17 @@ model VerificationToken {
 
 
 model OAReport {
-  id       Int       @id @default(autoincrement())
+  id       String       @id @default(uuid()) @unique
   date     DateTime  @default(now())
+  stripeTxId  String? @unique
+  completed Boolean @default(false)
+  orderTime DateTime @default(now())
   userID   String
   title String
+  specKey String
   features FeatureItem[]
-  @@index([userID])
+  files Reference[]
+  @@index([userID, stripeTxId])
 }
 
 model FeatureItem {
@@ -77,7 +82,33 @@ model FeatureItem {
   feature  String @db.MediumText()
   analysis String @db.LongText()
   source   String @db.MediumText()
-  reportID Int  // Foreign key relationship with the Analysis model
+  reportID String  // Foreign key relationship with the Analysis model
   oaReport OAReport @relation(fields: [reportID], references: [id])
   @@index([reportID])
+}
+
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  FAILED
+  SUCCESS
+}
+
+model UploadFile {
+  id        String      @id @default(cuid())
+  title     String
+  userId  String
+  uploadStatus UploadStatus @default(PENDING)
+  url String
+  key String
+  @@index([userId, key])
+}
+model Reference {
+  id        String      @id @default(cuid())
+  reportId  String
+  title String
+  userId  String
+  key String
+  report    OAReport @relation(fields: [reportId], references: [id])
+  @@index([reportId, userId])
 }

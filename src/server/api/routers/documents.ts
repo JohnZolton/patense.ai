@@ -15,12 +15,10 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "langchain/document";
 import { RetrievalQAChain } from "langchain/chains";
 import { ChatOpenAI } from "langchain/chat_models/openai";
-import { kMaxLength } from "buffer";
-import {ParentDocumentRetriever} from "langchain/retrievers/parent_document"
-import { InMemoryStore } from "langchain/storage/in_memory"
-import { Doc } from "prettier";
 import { TRPCClientError } from "@trpc/client";
 import { TRPCError } from "@trpc/server";
+import Stripe from "stripe";
+import { v4 as uuidv4 } from 'uuid';
 
 interface FeatureItem {
   feature: string;
@@ -28,7 +26,130 @@ interface FeatureItem {
   source: string;
 }
 
+const OUR_DOMAIN = 'http://localhost:3001/'
+
 export const documentRouter = createTRPCRouter({
+  
+  testSales: privateProcedure.mutation(async ({ctx})=>{
+    const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true})
+    const stripeSession = await stripe.checkout.sessions.create({
+      line_items:[
+        {
+          price: process.env.STRIPE_TEST_API_ID ?? '',
+          quantity: 1,
+        }
+      ],
+      mode: "payment",
+      success_url: `${OUR_DOMAIN}/home`,
+      cancel_url: `${OUR_DOMAIN}/home`,
+      automatic_tax: {enabled:true},
+    })
+    console.log(stripeSession)
+    return stripeSession.url
+  }),
+  
+  getFile:privateProcedure.input(
+    z.object({key: z.string()})
+  ).mutation(async ({ctx, input})=>{
+    const file = await ctx.prisma.uploadFile.findFirst({
+      where: {
+        key:input.key,
+        userId: ctx.userId
+      }
+    })
+    if (!file){
+      throw new TRPCError({code: "NOT_FOUND"})
+    }
+    return file
+  }),
+
+  saveDocsAndSendStripe: privateProcedure.input(
+    z.object({
+      spec: z.object({
+        key: z.string(),
+        title: z.string(),
+      }),
+      references: z.array(
+        z.object({
+          key: z.string(),
+          title: z.string()
+        })
+      )
+    })
+   )
+   .mutation(async ({ ctx, input})=>{
+    console.log(ctx.userId)
+    console.log("spec: ", input.spec.key)
+    console.log("references: ", input.references.length)
+    
+    const createdJob = await ctx.prisma.oAReport.create({
+      data:{
+        userID:ctx.userId,
+        specKey: input.spec.key,
+        title: input.spec.title,
+        files: {
+          create: input.references.map((reference)=>({
+            userId: ctx.userId,
+            key: reference.key,
+            title: reference.title,
+          }))
+        },
+      },
+    })
+
+    const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true, apiVersion: "2023-10-16"})
+    const stripeSession = await stripe.checkout.sessions.create({
+      line_items:[
+        {
+          price: process.env.STRIPE_TEST_API_ID ?? '',
+          quantity: 1,
+        }
+      ],
+      mode: "payment",
+      success_url: `${OUR_DOMAIN}/report`,
+      cancel_url: `${OUR_DOMAIN}/home`,
+      automatic_tax: {enabled:true},
+      payment_intent_data:{
+        metadata: {
+          userId: ctx.userId,
+          txId: createdJob.id
+        }
+      }
+    })
+    console.log("STRIPE SESSION ID: ",stripeSession.id)
+    
+    return stripeSession.url
+  }),
+  
+  startProcessingJob: privateProcedure.input(
+    z.object({
+      sessionId: z.string()
+    })
+  ).mutation(async ({ctx, input})=>{
+    console.log("session ID: ", input.sessionId)
+    console.log(ctx)
+    
+    // get doc from job
+    const job = await ctx.prisma.oAReport.findFirst({
+      where: {
+        stripeTxId: input.sessionId
+      },
+    })
+    console.log("query completed")
+    if (!job){
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Failed to find checkout session"
+      })
+    }
+    if (job !== undefined && job !==null){
+      console.log("completion: ", job.completed)
+    } else {
+      console.log("no job found")
+    }
+    return job
+  }),
+  
   
   getAllReports: privateProcedure.query(async ({ctx})=>{
     const reports = await ctx.prisma.oAReport.findMany({
@@ -54,6 +175,7 @@ export const documentRouter = createTRPCRouter({
   
   AnalyzeDocs: privateProcedure.input(
     z.object({
+      stripeTxId: z.string(),
       spec: z.object({
         fileName: z.string(),
         fileContent: z.string(),
@@ -184,10 +306,9 @@ export const documentRouter = createTRPCRouter({
         }
       }
     }
-    await ctx.prisma.oAReport.create({
+    await ctx.prisma.oAReport.update({
+      where: {stripeTxId: input.stripeTxId},
       data:{
-        userID:ctx.userId,
-        title: input.spec.fileName,
         features: {
           create: analysisArray.map((feature)=>({
             feature: feature.feature,
@@ -209,7 +330,7 @@ export const documentRouter = createTRPCRouter({
 const testText = `Described herein are lifting devices. The lifting device includes a tube. The tube has a first slot and a second slot. The lifting device also includes an insert having a first insert projection connected to a second insert projection by a central portion. The first insert projection extends through the first slot and the second insert projection extends through the second slot. The lifting device also includes a first plate and a second plate. The first plate and the second plate are each connected to the central portion of the insert. The tube has a longitudinal axis. A plurality of tube apertures are arranged in line with the longitudinal axis. The tube further comprises a first cap at a first end of the tube and a second cap at a second end of the tube. The tube has a circumference, and the first insert projection extends out of the tube at 0 degrees and the second insert projection extends out of the tube at 180 degrees. A length of the second slot is greater than a length of the first slot. The first insert projection and the second insert projection are on a same plane. The first insert projection, the second insert projection, and the central portion of the insert together are an integral structure. A width of the first insert projection, a width of the central portion of the insert, and a width of the second insert projection are substantially the same. The first insert projection includes an aperture, the central portion of the insert includes a plurality of apertures, and the first foot and the second foot each include an aperture. The second insert projection may further include a first foot and a second foot. The first plate and the second plate are each connected to the tube. The first plate and the second plate may each extend from a surface of the second insert projection to an internal surface of the tube. The first plate and the second plate may be welded to the tube and welded to at least a portion of the insert. Each of the first plate and the second plate are substantially rectangular with at least one angled side, wherein the at least one angled side of the first plate and the at least one angled side of the second plate are each connected to the central portion of the insert. Each of the first plate and the second plate are thinner than the second insert projection. Each of the tube, the insert, the first plate, and the second plate include a non-sparking metal. The non-sparking metal may be aluminum. The lifting device may be configured to support a weight of at least 60,000 pounds. The lifting device may be configured to support a working load of at least 15,000 pounds.`
 
 function makeChunks(text:string, length:number){
-  const size = Math.ceil(text.length / length)
+  const size =Math.ceil(text.length / length)
   return Array.from({length},(v,i)=>text.slice(i*size, (i+1)*size))
 }
 

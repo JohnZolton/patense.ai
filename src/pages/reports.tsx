@@ -24,9 +24,14 @@ const Reports: NextPage = () => {
   const { data: reports, isLoading: reportsLoading } = api.DocumentRouter.getAllReports.useQuery()
   
   async function handleDownloadClick(){
+    console.log("download clicked")
     if (selectedReport){
-      const blob = await pdf((<MyDocument selectedReport={selectedReport}/>)).toBlob()
-      saveAs(blob, selectedReport.title)
+      try{
+        const blob = await pdf((<MyDocument selectedReport={selectedReport}/>)).toBlob()
+        saveAs(blob, selectedReport.title)
+      } catch(error){
+        console.error("error downloading: ", error)
+      }
     }
   }
   function handleButtonClick(index:number){
@@ -63,7 +68,7 @@ const Reports: NextPage = () => {
             <div>
               <div className="flex flex-row justify-center mb-4 mt-6 gap-x-4">
                 <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
-                <Button onClick={()=> (async ()=> await handleDownloadClick())}>Download Report</Button>
+                <Button onClick={()=>{void handleDownloadClick()}}>Download Report</Button>
               </div>
                 <AnalysisContainer report={selectedReport} />
           </div>
@@ -125,6 +130,7 @@ const pdfStyles = StyleSheet.create({
     backgroundColor: 'rgb(243 244 246)',
     justifyContent: 'center', // Center content horizontally
     alignItems: 'center', // Center content vertically
+    fontFamily: "Helvetica"
   },
   section: {
     margin: 5,
