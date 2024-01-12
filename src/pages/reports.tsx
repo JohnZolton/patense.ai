@@ -54,14 +54,14 @@ const Reports: NextPage = () => {
 
         <NavBar />
           <SignedIn>
-          <div className="flex justify-center flex-col items-center ">
+          <div className="flex justify-center flex-col mt-3 items-center">
           {reportsLoading && 
-      (<Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>)}
+      (<Loader2 className="justify-center mt-10 items-center w-10 h-10 animate-spin"/>)}
           {(!reportsLoading)&& (reports === undefined || reports.length===0) && (
             <div>No reports</div>
           )}
             {(!selectedReport) && reports && reports.map((report, index)=>(
-              <button key={index} onClick={()=>handleButtonClick(index)} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">{report.title}</button>
+              <ReportSelector key={index} report={report} index={index} setSelectedReport={handleButtonClick}/>
             ))
             }
           {selectedReport && 
@@ -91,6 +91,21 @@ const Reports: NextPage = () => {
 
 export default Reports;
 
+interface ReportSelectorProps {
+  report: OAReport & {features: FeatureItem[]};
+  index: number
+  setSelectedReport: (index: number) => void;
+}
+
+function ReportSelector({report, setSelectedReport, index}:ReportSelectorProps){
+  return(
+    <div className="w-full items-center justify-center text-center">
+      <button key={index} onClick={()=>setSelectedReport(index)} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">
+        {report.title} {report.completed?? <Loader2 className="animate-spin h-8 w-8" />}
+        </button>
+    </div>
+  )
+}
 
 interface AnalysisContainerProps {
   report: (OAReport & {

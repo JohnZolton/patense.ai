@@ -30,23 +30,6 @@ const OUR_DOMAIN = 'http://localhost:3001/'
 
 export const documentRouter = createTRPCRouter({
   
-  testSales: privateProcedure.mutation(async ({ctx})=>{
-    const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true})
-    const stripeSession = await stripe.checkout.sessions.create({
-      line_items:[
-        {
-          price: process.env.STRIPE_TEST_API_ID ?? '',
-          quantity: 1,
-        }
-      ],
-      mode: "payment",
-      success_url: `${OUR_DOMAIN}/home`,
-      cancel_url: `${OUR_DOMAIN}/home`,
-      automatic_tax: {enabled:true},
-    })
-    console.log(stripeSession)
-    return stripeSession.url
-  }),
   
   getFile:privateProcedure.input(
     z.object({key: z.string()})
@@ -121,33 +104,23 @@ export const documentRouter = createTRPCRouter({
     return stripeSession.url
   }),
   
-  startProcessingJob: privateProcedure.input(
-    z.object({
-      sessionId: z.string()
-    })
-  ).mutation(async ({ctx, input})=>{
-    console.log("session ID: ", input.sessionId)
-    console.log(ctx)
-    
-    // get doc from job
-    const job = await ctx.prisma.oAReport.findFirst({
+  getLatestReport:privateProcedure.mutation(async({ctx})=>{
+    const report = await ctx.prisma.oAReport.findFirst({
       where: {
-        stripeTxId: input.sessionId
+        userID: ctx.userId,
       },
+      orderBy:[{date:"desc"}],
+      include:{
+        features: true
+      }
     })
-    console.log("query completed")
-    if (!job){
+    if (!report){
       throw new TRPCError({
         code: "NOT_FOUND",
-        message: "Failed to find checkout session"
+        message:"No reports found with that user"
       })
     }
-    if (job !== undefined && job !==null){
-      console.log("completion: ", job.completed)
-    } else {
-      console.log("no job found")
-    }
-    return job
+    return report
   }),
   
   

@@ -68,6 +68,7 @@ model OAReport {
   date     DateTime  @default(now())
   stripeTxId  String? @unique
   completed Boolean @default(false)
+  paid Boolean @default(false)
   orderTime DateTime @default(now())
   userID   String
   title String

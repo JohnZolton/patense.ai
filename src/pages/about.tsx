@@ -21,7 +21,7 @@ const Reports: NextPage = () => {
 
         {/* grainy not applying to whole screen, this fixes */}
         <div className="grainy">
-        <div className={`h-screen`}>
+        <div className={`min-h-screen`}>
         <NavBar />
         <MaxWidthWrapper>
         <div className="flex items-center justify-center text-3xl my-5 font-semibold">How It Works</div>
@@ -34,7 +34,7 @@ const Reports: NextPage = () => {
                 Step 1
               </span>
               <span className='text-xl font-semibold'>Inventive Feature Extraction</span>
-              <div>We use AI to scan through the specification to identify inventive elements. Scans are executed in chunks for higher accuracy.</div>
+              <div>We use AI to scan through the entire specification to identify inventive elements. Scans are executed in chunks for higher accuracy.</div>
             </div>
           </li>
           <li className='md:flex-1'>
@@ -52,7 +52,7 @@ const Reports: NextPage = () => {
                 Step 3
               </span>
               <span className='text-xl font-semibold'>AI Disclosure Analysis</span>
-              <div>Then we search that database for each inventive feature we identified and use AI to determine whether the reference discloses it.</div>
+              <div>Then we search that database for each inventive feature we identified and use AI to determine whether any reference discloses it.</div>
             </div>
           </li>
           <li className='md:flex-1'>
@@ -63,7 +63,7 @@ const Reports: NextPage = () => {
               <span className='text-xl font-semibold'>Generate a Report</span>
               <div>Last, we generate a report of all the inventive features, whether they are dislcosed in the references, and which references disclose them. Saving you and your clients time and money.</div>
               
-              <div className="flex items-center justify-center">
+              <div className="flex items-center pt-3 justify-center">
               <Link
                 href="home"
                 className={buttonVariants({
@@ -75,6 +75,11 @@ const Reports: NextPage = () => {
             </div>
           </li>
         </ol></div>
+        <div className="flex items-center justify-center text-3xl mt-10 my-5 font-semibold">Why</div>
+            <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
+              <span className='text-xl font-semibold'>To be the best we can</span>
+              <div className="pb-20">We believe in using every tool at our disposal to protect our clients. AI augments human performance and makes us more effective.</div>
+            </div>
         </MaxWidthWrapper>
         </div>
         </div>

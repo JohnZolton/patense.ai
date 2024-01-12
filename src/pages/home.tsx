@@ -73,7 +73,7 @@ const Home: NextPage = () => {
         const result = makeStripeCheckout({
           spec:{
             key: specFile.key,
-            title: specFile.title ?? "none"
+            title: specFile.upFile.name ?? "none"
           },
           references: referenceKeys
         })

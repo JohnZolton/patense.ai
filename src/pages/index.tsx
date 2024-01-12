@@ -6,6 +6,7 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import MaxWidthWrapper from "./components/maxwidthwrapper";
 import { ArrowRight } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import NavBar from "./components/navbar";
 
 
 
@@ -17,8 +18,9 @@ const Home: NextPage = () => {
         <meta name="description" content="AI Patent Assistant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <div className="h-screen grainy">
-      <MaxWidthWrapper className="flex flex-col justify-center items-center pt-24 text-center sm:w-100">
+      <div className="min-h-screen grainy">
+      <NavBar/>
+      <MaxWidthWrapper className="flex flex-col justify-center items-center pt-16 text-center sm:w-100">
         <div className="flex overflow-hidden justify-center items-center px-7 py-2 mx-auto mb-4 space-x-2 bg-white rounded-full border border-gray-200 shadow-md backdrop-blur transition-all hover:border-gray-300 hover:bg-white/50">
           <p className="text-sm font-semibold text-gray-700">
             Patense.ai is now public!
@@ -57,10 +59,10 @@ const Home: NextPage = () => {
       <div className='px-16 mx-auto mb-12 max-w-5xl sm:mt-8'>
         <div className='px-6 mb-6 lg:px-8'>
           <div className='mx-auto max-w-2xl sm:text-center'>
-            <h2 className='mt-2 text-4xl font-bold text-zing-700 sm:text-5xl'>
+            <h2 className='mt-2 text-4xl text-center font-bold text-zing-700 sm:text-5xl'>
               Analyze references in seconds
             </h2>
-            <p className='mt-6 text-lg text-gray-600'>Responding to Office Actions has never been easier.</p>
+            <p className='mt-6 text-lg text-center text-gray-600'>Patents are high-stakes. Use every advantage you have.</p>
           </div>
         </div>
         
@@ -73,7 +75,7 @@ const Home: NextPage = () => {
                 Step 1
               </span>
               <span className='text-xl font-semibold'>Upload your specification</span>
-              <span className='mt-2 text-zinc-700'>as a pdf with recognized text.</span>
+              <span className='mt-2 text-zinc-700'>as a PDF with recognized text.</span>
             </div>
           </li>
           <li className='md:flex-1'>
@@ -84,7 +86,7 @@ const Home: NextPage = () => {
               <span className='text-xl font-semibold'>
                 Upload <span className="underline underline-offset-2">all</span> references
               </span>
-              <span className='mt-2 text-zinc-700'>as a pdf with recognized text.</span>
+              <span className='mt-2 text-zinc-700'>as PDFs with recognized text.</span>
             </div>
           </li>
           <li className='md:flex-1'>
