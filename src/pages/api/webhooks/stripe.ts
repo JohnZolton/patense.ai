@@ -61,7 +61,10 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
     if (event.type === 'payment_intent.succeeded'&&session.metadata.txId) {
       console.log("intent succeeded")
       console.log("Transaction id: ",session.metadata.txId)
-      const job = await prisma.oAReport.findFirst({
+      const job = await prisma.oAReport.update({
+        data:{
+          paid:true
+        },
         where: {
           id: session.metadata.txId
         },
@@ -203,6 +206,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
           id: session.metadata.txId,
         },
         data:{
+          completed: true,
           features: {
             create: analysisArray.map((feature)=>({
               feature: feature.feature,
