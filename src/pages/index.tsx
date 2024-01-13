@@ -56,7 +56,7 @@ const Home: NextPage = () => {
       </MaxWidthWrapper>
             
       {/* Feature section */}
-      <div className='px-16 mx-auto mb-12 max-w-5xl sm:mt-8'>
+      <div className='px-16 mx-auto mb-12 max-w-5xl sm:mt-4'>
         <div className='px-6 mb-6 lg:px-8'>
           <div className='mx-auto max-w-2xl sm:text-center'>
             <h2 className='mt-2 text-4xl text-center font-bold text-zing-700 sm:text-5xl'>

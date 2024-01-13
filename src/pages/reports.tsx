@@ -7,17 +7,19 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check } from 'lucide-react'
 import { NavBar } from "~/pages/components/navbar";
-import { OAReport, FeatureItem } from "@prisma/client";
+import { OAReport, FeatureItem, Reference } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
 import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
+import { buttonVariants } from "@/components/ui/button";
 
 
 
 const Reports: NextPage = () => {
   const [selectedReport, setSelectedReport] = useState<(OAReport & {
     features: FeatureItem[];
+    files: Reference[];
 })>()
 
 
@@ -77,11 +79,11 @@ const Reports: NextPage = () => {
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}
+            <div className="flex flex-row items-center justify-center mt-10">
             <SignInButton redirectUrl="home">
-              <button className="rounded-full bg-slate-700 p-3 text-xl  hover:bg-gray-600">
-                Sign In
-              </button>
+              <button className={buttonVariants({size:'sm'})} >Sign in</button>
             </SignInButton>
+            </div>
           </SignedOut>
         </div>
         </div>
@@ -92,7 +94,9 @@ const Reports: NextPage = () => {
 export default Reports;
 
 interface ReportSelectorProps {
-  report: OAReport & {features: FeatureItem[]};
+  report: OAReport & {
+    files: Reference[];
+    features: FeatureItem[]};
   index: number
   setSelectedReport: (index: number) => void;
 }
@@ -110,6 +114,7 @@ function ReportSelector({report, setSelectedReport, index}:ReportSelectorProps){
 interface AnalysisContainerProps {
   report: (OAReport & {
     features: FeatureItem[];
+    files: Reference[];
 }) | undefined
 }
 
@@ -209,6 +214,7 @@ const PDFDisplay = ({ item }: AnalysisDisplayProps) => (
 interface MyDocumentProps {
   selectedReport: OAReport & {
     features: FeatureItem[];
+    files: Reference[];
 };
 }
 // MyDocument component

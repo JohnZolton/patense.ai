@@ -15,7 +15,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
 enum DocState {
   LOADING = 'LOADING',
@@ -126,11 +125,11 @@ const Home: NextPage = () => {
           </SignedIn>
           <SignedOut>
             {/* Signed out users get sign in button */}
+            <div className="flex flex-row items-center justify-center mt-10">
             <SignInButton redirectUrl="home">
-              <button className="p-3 text-xl rounded-full bg-slate-700 hover:bg-gray-600">
-                Sign In
-              </button>
+              <button className={buttonVariants({size:'sm'})} >Sign in</button>
             </SignInButton>
+            </div>
           </SignedOut>
         </div>
     </>

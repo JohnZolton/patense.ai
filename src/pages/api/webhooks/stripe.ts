@@ -85,7 +85,6 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       if (!specText || specText[0]?.pageContent ===undefined){return null}
       
       const openai = new OpenAI();
-      //ERROR PARSING PDF TEXT
       const chunkSize = 12000
       const totalChunks=Math.ceil(specText.length/chunkSize)
       const chunks = makeChunks(specText[0].pageContent, totalChunks)

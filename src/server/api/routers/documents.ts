@@ -111,7 +111,8 @@ export const documentRouter = createTRPCRouter({
       },
       orderBy:[{date:"desc"}],
       include:{
-        features: true
+        features: true,
+        files: true
       }
     })
     if (!report){
@@ -131,7 +132,8 @@ export const documentRouter = createTRPCRouter({
       },
       orderBy: [{ date: "desc"}],
       include: {
-        features: true
+        features: true,
+        files: true,
       }
     })
     if (reports[0]&&reports[0]){
