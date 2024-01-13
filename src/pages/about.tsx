@@ -78,7 +78,11 @@ const Reports: NextPage = () => {
         <div className="flex items-center justify-center text-3xl mt-10 my-5 font-semibold">Why</div>
             <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
               <span className='text-xl font-semibold'>To be the best we can</span>
-              <div className="pb-20">We believe in using every tool at our disposal to protect our clients. AI augments human performance and makes us more effective.</div>
+              <div className="pb-5">We believe in using every tool at our disposal to protect our clients. AI augments human performance and makes us more effective.</div>
+            </div>
+            <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
+              <span className='text-xl font-semibold'>A Second Opinion, Instantly</span>
+              <div className="pb-20">AI is a second pair of eyes. Giving you a second opinion without interrupting your colleagues.</div>
             </div>
         </MaxWidthWrapper>
         </div>

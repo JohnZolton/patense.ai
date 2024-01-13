@@ -68,7 +68,7 @@ const Reports: NextPage = () => {
             }
           {selectedReport && 
             <div>
-              <div className="flex flex-row justify-center mb-4 mt-6 gap-x-4">
+              <div className="flex flex-row justify-center mb-4 mt-2 gap-x-4">
                 <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
                 <Button onClick={()=>{void handleDownloadClick()}}>Download Report</Button>
               </div>
@@ -122,7 +122,20 @@ function AnalysisContainer({report}:AnalysisContainerProps){
   if (report===undefined){return(null)}
   return(
     <div id="capture" className="w-full max-w-xl items-center justify-center flex flex-col">
-    <div className="font-semibold text-xl">{report.title} - {report.date.toLocaleDateString()}</div>
+            <div className="flex flex-row justify-between items-center w-2/3">
+    <div className="font-semibold text-2xl">{report.title}</div>
+    <div>{report.date.toLocaleDateString()}</div>
+    </div>
+            <div className="flex flex-row justify-between w-2/3">
+            <div>References</div>
+            <div className="flex flex-col">
+          {report?.files.map((file, index)=>(
+            <div key={index}>{file.title}</div>
+          ))}
+              
+            </div>
+              
+            </div>
     {report.features.map((featureItem, index)=>(
       <AnalysisDisplay key={index} item={featureItem} />
     ))}

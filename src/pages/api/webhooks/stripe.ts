@@ -86,11 +86,13 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       
       const openai = new OpenAI();
       const chunkSize = 12000
-      const totalChunks=Math.ceil(specText.length/chunkSize)
+      const totalChunks=Math.ceil(specText[0].pageContent.length/chunkSize)
       const chunks = makeChunks(specText[0].pageContent, totalChunks)
       let featureList = ""
       for (let i=0; i<chunks.length;i++){
         console.log("CHUNK: ", chunks[i])
+        console.log(chunks[i]?.length)
+        console.log(chunks.length)
         if (chunks[i]===undefined){break}
         const completion = await openai.chat.completions.create({
           messages: [
