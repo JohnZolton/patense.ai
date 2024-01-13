@@ -15,6 +15,7 @@ import { useUploadThing } from "~/utils/uploadthing";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import { OAReport, FeatureItem, Reference } from "@prisma/client";
+import Link from "next/link";
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -77,6 +78,10 @@ const Home: NextPage = () => {
   
   const {toast}=useToast()
   
+  function handleDownloadClick(){
+    console.log("todo")
+  }
+  
   
   return (
     <>
@@ -96,10 +101,21 @@ const Home: NextPage = () => {
           )}
           {appState === AppState.SHOW_RESULTS && (
             <div className="flex flex-col items-center justify-center max-w-xl mx-auto mt-5">
-          <div className="font-semibold text-xl">{report?.title} - {report?.date.toLocaleDateString()}</div>
+              <div className="flex flex-row justify-center mb-4 gap-x-4">
+              <Link href="reports" className={buttonVariants({})}>All Reports</Link>
+                <Button onClick={()=>{void handleDownloadClick()}}>Download Report</Button>
+              </div>
+          <div className="font-semibold text-2xl">{report?.title} - {report?.date.toLocaleDateString()}</div>
+            <div className="flex flex-row justify-between w-2/3">
+            <div>References</div>
+            <div className="flex flex-col">
           {report?.files.map((file, index)=>(
             <div key={index}>{file.title}</div>
           ))}
+
+            </div>
+
+            </div>
           <div className="flex flex-col items-center justify-center max-w-xl mx-auto">
             <AnalysisContainer features={report?.features} />
           </div>
@@ -179,7 +195,7 @@ interface AnalysisDisplayProps {
 }
 function AnalysisDisplay({item}:AnalysisDisplayProps){
   return(
-    <div className="flex flex-col gap-y-2 items-start p-2 my-2 border border-collapse">
+    <div className="flex flex-col gap-y-2 items-start p-2 my-2 border border-collapse rounded-md bg-gray-100">
       <div className="font-semibold">Feature: {item.feature}</div>
       <div className="">Analysis: {item.analysis}</div>
       <div className="text-sm">Source: {item.source}</div>
