@@ -39,7 +39,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(
-        buf.toString(),
+        buf,
         sig,
         process.env.STRIPE_TEST_WEBHOOK_SECRET!
       )
