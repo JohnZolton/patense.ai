@@ -85,7 +85,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       if (!specText || specText[0]?.pageContent ===undefined){return null}
       
       const openai = new OpenAI();
-      const chunkSize = 12000
+      const chunkSize = 6000
       const totalChunks=Math.ceil(specText[0].pageContent.length/chunkSize)
       const chunks = makeChunks(specText[0].pageContent, totalChunks)
       let featureList = ""
