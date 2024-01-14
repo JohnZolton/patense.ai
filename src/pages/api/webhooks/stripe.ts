@@ -17,7 +17,11 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+//const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+    //typescript: true,
+    //apiVersion: "2023-10-16"
+  //})
+const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
     typescript: true,
     apiVersion: "2023-10-16"
   })
@@ -35,13 +39,13 @@ export const config = {
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method==="POST"){
     const body = await buffer(req)
-    const signature = req.headers['stripe-signature']!
-    //const signature = headers().get('Stripe-Signature') ?? ""
+    //const sig = req.headers['stripe-signature']!
+    const sig = headers().get('Stripe-Signature') ?? ""
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(
         body,
-        signature,
+        sig,
         process.env.STRIPE_TEST_WEBHOOK_SECRET!
       )
     } catch (err) {
