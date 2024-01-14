@@ -8,8 +8,6 @@ import {PDFLoader} from 'langchain/document_loaders/fs/pdf'
 
 const f = createUploadthing();
  
-//NEED GET USER ID FROM CLERK
- 
 // FileRouter for your app, can contain multiple FileRoutes
 export const ourFileRouter = {
   // Define as many FileRoutes as you like, each with a unique routeSlug
@@ -42,7 +40,6 @@ export const ourFileRouter = {
           const blob = await response.blob()
           const loader = new PDFLoader(blob)
           const pageLevelDocs = await loader.load()
-          console.log("page level docs: ", pageLevelDocs.length)
           if (pageLevelDocs.length < 1){
             console.log("update failed")
             await db.uploadFile.update({
