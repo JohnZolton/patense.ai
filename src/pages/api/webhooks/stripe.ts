@@ -26,7 +26,8 @@ const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
     apiVersion: "2023-10-16"
   })
 
-const endpointSecret = process.env.STRIPE_TEST_WEB_SECRET!
+//const endpointSecret = process.env.STRIPE_TEST_WEB_SECRET!
+const endpointSecret = process.env.STRIPE_TEST_WEBHOOK_SECRET!
 
 const cors = Cors({
   allowMethods: ['POST', 'HEAD'],
@@ -40,7 +41,7 @@ export const config = {
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method==="POST"){
     const body = await buffer(req)
-    const sig = req.headers['Stripe-Signature']!
+    const sig = req.headers['stripe-signature']!
     //const sig = headers().get('Stripe-Signature') ?? ""
     let event: Stripe.Event
     try {
