@@ -26,6 +26,7 @@ const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
     apiVersion: "2023-10-16"
   })
 
+const endpointSecret = process.env.STRIPE_TEST_WEB_SECRET!
 
 const cors = Cors({
   allowMethods: ['POST', 'HEAD'],
@@ -46,7 +47,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       event = stripe.webhooks.constructEvent(
         body,
         sig,
-        process.env.STRIPE_TEST_WEB_SECRET!
+        endpointSecret
       )
     } catch (err) {
       console.error(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown Error'}`);
