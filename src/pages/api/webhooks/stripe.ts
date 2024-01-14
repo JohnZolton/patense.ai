@@ -28,6 +28,7 @@ const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
 
 //const endpointSecret = process.env.STRIPE_TEST_WEB_SECRET!
 const endpointSecret = process.env.STRIPE_TEST_WEBHOOK_SECRET!
+const maxDuration = 300
 
 const cors = Cors({
   allowMethods: ['POST', 'HEAD'],
