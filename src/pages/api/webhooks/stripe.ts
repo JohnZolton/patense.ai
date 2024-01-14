@@ -17,14 +17,14 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 
-//const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-    //typescript: true,
-    //apiVersion: "2023-10-16"
-  //})
-const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
     typescript: true,
     apiVersion: "2023-10-16"
   })
+//const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
+    //typescript: true,
+    //apiVersion: "2023-10-16"
+  //})
 
 
 const cors = Cors({
