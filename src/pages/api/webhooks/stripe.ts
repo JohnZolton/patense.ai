@@ -34,13 +34,14 @@ export const config = {
 
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method==="POST"){
-    const buf = await buffer(req)
-    const sig = req.headers['stripe-signature']!
+    const body = await buffer(req)
+    //const sig = req.headers['stripe-signature']!
+    const signature = headers().get('Stripe-Signature') ?? ""
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(
-        buf,
-        sig,
+        body,
+        signature,
         process.env.STRIPE_TEST_WEBHOOK_SECRET!
       )
     } catch (err) {
