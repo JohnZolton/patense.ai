@@ -46,7 +46,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       event = stripe.webhooks.constructEvent(
         body,
         sig,
-        process.env.STRIPE_TEST_WEBHOOK_SECRET!
+        process.env.STRIPE_TEST_WEB_SECRET!
       )
     } catch (err) {
       console.error(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown Error'}`);
