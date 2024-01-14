@@ -19,6 +19,9 @@ import { TRPCClientError } from "@trpc/client";
 import { TRPCError } from "@trpc/server";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from 'uuid';
+import { UTApi } from "uploadthing/server";
+ 
+const utapi = new UTApi();
 
 interface FeatureItem {
   feature: string;
@@ -26,11 +29,26 @@ interface FeatureItem {
   source: string;
 }
 
-const OUR_DOMAIN = 'http://localhost:3001/'
+const OUR_DOMAIN = process.env.NODE_ENV === "development" ? 'http://localhost:3001/' : "https://patense.ai/"
 
 export const documentRouter = createTRPCRouter({
   
   
+  deleteAllFiles:privateProcedure.mutation(async ({ctx})=>{
+    if (ctx.userId ==="user_2O41MpqHgq6YqPzFrzXXDyUgaTr"){
+      const UTFiles = await utapi.listFiles({limit:2000})
+      const keys = UTFiles.map((file)=>file.key)
+      const deletedFiles = await utapi.deleteFiles(keys)
+      console.log("deleted files: ", deletedFiles)
+      
+      const file = await ctx.prisma.uploadFile.deleteMany()
+      console.log("deleted DB files: ", file)
+      if (!file){
+        throw new TRPCError({code: "NOT_FOUND"})
+      }
+      return file
+    }
+  }),
   getFile:privateProcedure.input(
     z.object({key: z.string()})
   ).mutation(async ({ctx, input})=>{

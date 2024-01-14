@@ -2,10 +2,10 @@ import { type NextPage } from "next";
 import Head from "next/head";
 import { api } from "~/utils/api";
 
-import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check, Ban } from 'lucide-react'
+import {Cloud, File, Loader2, Trash2, Check, Ban } from 'lucide-react'
 import { NavBar } from "~/pages/components/navbar";
 import { pdfjs } from 'react-pdf';
 import Dropzone from "react-dropzone";
@@ -40,7 +40,6 @@ const Home: NextPage = () => {
   const [resultData, setResultData] = useState<FeatureItem[]>([])
   const [appState, setAppState] = useState<AppState>(AppState.LOAD_DOCUMENTS);
 
-  
   const { mutate: makeStripeCheckout } = api.DocumentRouter.saveDocsAndSendStripe.useMutation(
     {
       onSuccess: (url)=>{
@@ -96,21 +95,21 @@ const Home: NextPage = () => {
         <Toaster/>
           <SignedIn>
           {appState === AppState.LOAD_DOCUMENTS && (
-          <div className="mx-auto w-full max-w-3xl sm:w-3/4 lg:w-2/5">
-            <SpecDropzone setSpecFile={setSpecFile} />
-            <SpecDisplay specification={specFile} setSpecFile={setSpecFile}/>
-            <ReferenceDropZone setRefFile={setRefFiles}/>
-            <ReferenceContainer refList={refFiles} setRefList={setRefFiles}/>
-            <div className="flex flex-col justify-center items-center">
-            <Button 
-              className={buttonVariants({
-                variant:"default"
-              })}
-              onClick={()=>handleButtonClick()}
-              >Generate Report</Button>
+            <div className="mx-auto w-full max-w-3xl sm:w-3/4 lg:w-2/5">
+              <SpecDropzone setSpecFile={setSpecFile} />
+              <SpecDisplay specification={specFile} setSpecFile={setSpecFile}/>
+              <ReferenceDropZone setRefFile={setRefFiles}/>
+              <ReferenceContainer refList={refFiles} setRefList={setRefFiles}/>
+              <div className="flex flex-col justify-center items-center">
+              <Button 
+                className={buttonVariants({
+                  variant:"default"
+                })}
+                onClick={()=>handleButtonClick()}
+                >Generate Report</Button>
+              </div>
+              <div className="mt-10 text-center">Only PDFs with recognized text are supported.</div>
             </div>
-            <div className="mt-10 text-center">Only PDFs with recognized text are supported.</div>
-          </div>
           )}
           {appState === AppState.LOADING && (
           <div>
@@ -385,7 +384,7 @@ function RefereceDisplay({reference, idx, setRefList, removeItem, updateRefList}
         }
       },
       retry: true,
-      retryDelay: 500,
+      retryDelay: 10000,
     }
   )
   return (
@@ -418,7 +417,6 @@ interface ReferenceDropZoneProps {
 function ReferenceDropZone({setRefFile}:ReferenceDropZoneProps){
   return(
     <div>
-
     <Dropzone 
       multiple={true}
       onDrop={(acceptedFiles)=>{
