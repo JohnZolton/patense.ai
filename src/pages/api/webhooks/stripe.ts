@@ -37,7 +37,7 @@ export const config = {
   api: {
     bodyParser: false,
   },
-  maxDuration:600,
+  maxDuration:300,
 };
 
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
