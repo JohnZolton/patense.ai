@@ -3,5 +3,8 @@
       "pages/api/**/*": {
         "maxDuration": 300
       }
+    },
+    "src/pages/api/**/*":{
+        "maxDuration":300
     }
   }
