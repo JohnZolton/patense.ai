@@ -1,6 +1,6 @@
 {
     "functions": {
-      "pages/api/**/*": {
+      "pages/api/webhooks/stripe": {
         "maxDuration": 300
       }
     }
