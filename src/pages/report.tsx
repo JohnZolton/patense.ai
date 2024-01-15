@@ -90,7 +90,8 @@ const Home: NextPage = () => {
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-        <div className="h-screen grainy">
+        <div className="grainy">
+        <div className={(appState === AppState.SHOW_RESULTS) ? `min-h-screen` : 'h-screen'}>
         <NavBar />
         <Toaster/>
           <SignedIn>
@@ -130,6 +131,7 @@ const Home: NextPage = () => {
             </SignInButton>
             </div>
           </SignedOut>
+        </div>
         </div>
     </>
   );
