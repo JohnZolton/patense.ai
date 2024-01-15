@@ -36,8 +36,7 @@ const cors = Cors({
 export const config = {
   api: {
     bodyParser: false,
-  },
-  maxDuration:300,
+  }
 };
 
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
