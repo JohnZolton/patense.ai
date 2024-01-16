@@ -81,7 +81,9 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
         <div className="grainy">
+
         <div className="min-h-screen">
+
         <NavBar />
         <Toaster/>
           <SignedIn>
@@ -111,6 +113,8 @@ const Home: NextPage = () => {
             </div>
           </SignedOut>
           </div>
+        </div>
+      </div>
         </div>
     </>
   );

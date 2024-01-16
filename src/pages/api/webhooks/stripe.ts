@@ -18,11 +18,18 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { start } from 'repl';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+//const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+    //typescript: true,
+    //apiVersion: "2023-10-16"
+  //})
+const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {
     typescript: true,
     apiVersion: "2023-10-16"
   })
 
+//const endpointSecret = process.env.STRIPE_TEST_WEB_SECRET!
+const endpointSecret = process.env.STRIPE_TEST_WEBHOOK_SECRET!
+const maxDuration = 300
 
 const cors = Cors({
   allowMethods: ['POST', 'HEAD'],
@@ -30,21 +37,21 @@ const cors = Cors({
 export const config = {
   api: {
     bodyParser: false,
-  },
+  }
 };
 
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
   const startTime = Date.now()
   if (req.method==="POST"){
     const body = await buffer(req)
-    const signature = req.headers['stripe-signature']!
-    //const signature = headers().get('Stripe-Signature') ?? ""
+    const sig = req.headers['stripe-signature']!
+    //const sig = headers().get('Stripe-Signature') ?? ""
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(
         body,
-        signature,
-        process.env.STRIPE_TEST_WEBHOOK_SECRET!
+        sig,
+        endpointSecret
       )
     } catch (err) {
       console.error(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown Error'}`);
