@@ -90,7 +90,7 @@ const Home: NextPage = () => {
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-        <div className="h-screen grainy">
+        <div className="min-h-screen grainy">
         <NavBar />
         <Toaster/>
           <SignedIn>

@@ -203,7 +203,11 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
         analysis: string;
         source: string;
       }
-      const analysisArray: FeatureItem[]=[]
+      const analysisArray: FeatureItem[]= Array.from({length: featureArray.length},()=>({
+        feature:"",
+        analysis: "",
+        source:""
+      }))
       interface vectorDocument {
         pageContent: string;
         metadata: {
@@ -225,7 +229,6 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
         const currentFeature = feature.replace(/^\d+\.\s*/, ''); // Remove leading numbers
         const fullFeature =feature
         console.log("ANALYZING FEATURE: ")
-        console.log("full feature: ", fullFeature)
         console.log("current feature", currentFeature)
 
         if (currentFeature!==undefined &&fullFeature !== undefined){
@@ -238,8 +241,8 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
             const sourceDocuments: Document[]=response.sourceDocuments
             const uniqueTitles = new Set(sourceDocuments.map(doc=>doc.metadata.title as string))
             const concatenatedTitles = Array.from(uniqueTitles).join(", ")
-            const newItem: FeatureItem = {feature: fullFeature, analysis: String(response.text), source:concatenatedTitles}
-            analysisArray.push(newItem)
+            const newItem: FeatureItem = {feature: currentFeature, analysis: String(response.text), source:concatenatedTitles}
+            analysisArray[index] = newItem
           }
         }
       })
