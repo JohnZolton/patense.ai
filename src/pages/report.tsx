@@ -16,27 +16,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import { OAReport, FeatureItem, Reference } from "@prisma/client";
 import Link from "next/link";
+import { AnalysisContainer } from "./reports";
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-enum DocState {
-  LOADING = 'LOADING',
-  FAILED = 'FAILED',
-  SUCCESS = 'SUCCESS',
-}
 enum AppState {
   LOAD_DOCUMENTS = 'LOAD_DOCUMENTS',
   LOADING = 'LOADING',
   SHOW_RESULTS = 'SHOW_RESULTS',
 }
   
-interface UserFile {
-  upFile: File,
-  loadstate: DocState,
-  key?: string,
-  title?: string
-}
 
 const Home: NextPage = () => {
   const [report, setReport] = useState<(OAReport & {
@@ -105,19 +95,8 @@ const Home: NextPage = () => {
               <Link href="reports" className={buttonVariants({})}>All Reports</Link>
                 <Button onClick={()=>{void handleDownloadClick()}}>Download Report</Button>
               </div>
-          <div className="font-semibold text-2xl">{report?.title} - {report?.date.toLocaleDateString()}</div>
-            <div className="flex flex-row justify-between w-2/3">
-            <div>References</div>
-            <div className="flex flex-col">
-          {report?.files.map((file, index)=>(
-            <div key={index}>{file.title}</div>
-          ))}
-
-            </div>
-
-            </div>
           <div className="flex flex-col items-center justify-center max-w-xl mx-auto">
-            <AnalysisContainer features={report?.features} />
+            <AnalysisContainer report={report} />
           </div>
             </div>
           )}
@@ -171,34 +150,6 @@ function LoadDisplay(){
     <div className="flex flex-col justify-center items-center py-3">
       <Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>
       <div>{loadingMessages[currentMessageIndex]}</div>
-    </div>
-  )
-}
-
-
-interface AnalysisContainerProps {
-  features: FeatureItem[] | undefined
-}
-
-function AnalysisContainer({features}:AnalysisContainerProps){
-    if (features===undefined){return null}
-  return(
-    <div className="my-4">
-    {features.map((featureItem, index)=>(
-      <AnalysisDisplay key={index} item={featureItem} />
-    ))}
-    </div>
-  )
-}
-interface AnalysisDisplayProps {
-  item: FeatureItem;
-}
-function AnalysisDisplay({item}:AnalysisDisplayProps){
-  return(
-    <div className="flex flex-col gap-y-2 items-start p-2 my-2 border border-collapse rounded-md bg-gray-100">
-      <div className="font-semibold">Feature: {item.feature}</div>
-      <div className="">Analysis: {item.analysis}</div>
-      <div className="text-sm">Source: {item.source}</div>
     </div>
   )
 }

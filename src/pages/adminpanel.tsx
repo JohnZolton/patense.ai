@@ -32,6 +32,30 @@ const AdminPanel: NextPage = () => {
   function handleButtonClick(){
     deleteFiles()
   }
+  function runTestReport(){
+    const result = makeStripeCheckout({
+      spec:{
+        key: "49bfe0d0-b3e5-4f8a-b260-f4ce95fa6297-f0eqdz.pdf",
+        title: "test spec file"
+      },
+      references: [
+        {title: "adams­.pdf", key: "1144a280-f45f-474e-8a71-a275ca830770-ddq3ib.pdf"},
+        {title: "stitt.pdf", key: "2a44acbc-a90b-408e-a7ac-19adf6cca35a-exk3d.pdf"},
+        {title: "polley.pdf", key: "5b99bb7d-7299-4f6b-9af3-7432f6be9a1e-iwstf2.pdf"},
+        {title: "Kuenzel.pdf", key: "64d7da06-7479-4af4-897e-caba8a82dd9a-gt9zil.pdf"},
+        {title: "williams.pdf", key: "daffa979-0bb4-4227-a442-d47111eb5f47-dgx25r.pdf"},
+        {title: "Nachtegaal.pdf", key: "6fddbc48-92d3-4ed6-b3f3-76faa07e96e4-utvtoz.pdf"},
+      ]
+    })
+  }
+  const { mutate: makeStripeCheckout } = api.DocumentRouter.saveDocsAndSendStripe.useMutation(
+    {
+      onSuccess: (url)=>{
+        window.location.href=url ?? '/home'
+      }
+    }
+  )
+  const { mutate: runRecursiveCalls } = api.DocumentRouter.testRecursiveCalls.useMutation()
   
   return (
     <>
@@ -44,8 +68,10 @@ const AdminPanel: NextPage = () => {
         <NavBar />
         <Toaster/>
           <SignedIn>
-          <div className="flex flex-col items-center mt-10">
+          <div className="flex flex-col items-center mt-10 gap-y-3">
           <Button onClick={handleButtonClick}>Delete All Files</Button>
+          <Button onClick={runTestReport}>Run Test Report</Button>
+          <Button onClick={()=>runRecursiveCalls()}>Test recursive calls</Button>
 
           </div>
           </SignedIn>

@@ -118,7 +118,7 @@ interface AnalysisContainerProps {
 }) | undefined
 }
 
-function AnalysisContainer({report}:AnalysisContainerProps){
+export function AnalysisContainer({report}:AnalysisContainerProps){
   if (report===undefined){return(null)}
   return(
     <div id="capture" className="w-full max-w-xl items-center justify-center flex flex-col">
@@ -147,7 +147,7 @@ interface AnalysisDisplayProps {
 }
 function AnalysisDisplay({item}:AnalysisDisplayProps){
   return(
-    <div className="flex flex-col items-start border bg-gray-100 border-collapse rounded-lg p-2 gap-y-2 my-2">
+    <div className="flex w-full flex-col items-start border bg-gray-100 border-collapse rounded-lg p-2 gap-y-2 my-2">
       <div className="font-semibold">{item.feature}</div>
       <div className="">Analysis: {item.analysis}</div>
       <div className="text-sm">Source: {item.source}</div>
