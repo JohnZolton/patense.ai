@@ -114,7 +114,6 @@ const Home: NextPage = () => {
           </SignedOut>
           </div>
         </div>
-      </div>
     </>
   );
 };
