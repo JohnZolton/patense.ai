@@ -81,7 +81,9 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
         <div className="grainy">
-        <div className={(appState === AppState.SHOW_RESULTS) ? `min-h-screen` : 'h-screen'}>
+
+        <div className="min-h-screen">
+
         <NavBar />
         <Toaster/>
           <SignedIn>
@@ -110,7 +112,9 @@ const Home: NextPage = () => {
             </SignInButton>
             </div>
           </SignedOut>
+          </div>
         </div>
+      </div>
         </div>
     </>
   );

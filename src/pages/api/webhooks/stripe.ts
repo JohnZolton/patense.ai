@@ -105,7 +105,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
         const completion = await openai.chat.completions.create({
           messages: [
             { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
-            { role: "user", content: "Identify each and every inventive element in the following disclosure, make sure you identify every possible feature but do not repeat yourself." },
+            { role: "user", content: "Identify each and every inventive element in the following disclosure, do not repeat yourself. Identify only features that could be inventive." },
             { role: "user", content: `Disclosure: ${chunk}` },
             { role: "user", content: `New features:` },
           ],
@@ -228,9 +228,9 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
         sourceDocuments:vectorDocument[],
       }
 
-      for (let i=0; i<featureArray.length; i++){
-        const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
-        const fullFeature = featureArray[i]
+      const pineconePromises = featureArray.map(async (feature, index)=>{
+        const currentFeature = feature.replace(/^\d+\.\s*/, ''); // Remove leading numbers
+        const fullFeature =feature
         console.log("ANALYZING FEATURE: ")
         console.log("full feature: ", fullFeature)
         console.log("current feature", currentFeature)
@@ -249,7 +249,9 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
             analysisArray.push(newItem)
           }
         }
-      }
+      })
+      await Promise.all(pineconePromises)
+
       await prisma.oAReport.update({
         where: {
           id: session.metadata.txId,
