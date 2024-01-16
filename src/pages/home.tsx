@@ -226,7 +226,7 @@ function SpecDisplay({specification, setSpecFile}: SpecDisplayProps){
 
   const {toast}=useToast()
   useEffect(() => {
-    if (specification){
+    if (specification && specification.loadstate===DocState.LOADING){
       const handleSpecChange = async () =>{
         const res = await startUpload([specification.upFile])
         if (!res){

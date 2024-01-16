@@ -16,6 +16,7 @@ import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
+import { start } from 'repl';
 
 //const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
     //typescript: true,
@@ -40,6 +41,7 @@ export const config = {
 };
 
 async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
+  const startTime = Date.now()
   if (req.method==="POST"){
     const body = await buffer(req)
     const sig = req.headers['stripe-signature']!
@@ -96,34 +98,70 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       const chunkSize = 6000
       const totalChunks=Math.ceil(specText[0].pageContent.length/chunkSize)
       const chunks = makeChunks(specText[0].pageContent, totalChunks)
-      let featureList = ""
-      for (let i=0; i<chunks.length;i++){
-        console.log("CHUNK: ", chunks[i])
-        console.log(chunks[i]?.length)
-        console.log(chunks.length)
-        if (chunks[i]===undefined){break}
+      //let featureList = ""
+      const featuresList:string[] = Array(chunks.length).fill("") as string[]
+      
+      const openAiPromises = chunks.map(async (chunk, index)=>{
         const completion = await openai.chat.completions.create({
           messages: [
             { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
             { role: "user", content: "Identify each and every inventive element in the following disclosure, make sure you identify every possible feature but do not repeat yourself." },
-            { role: "user", content: `Identified features: ${featureList}` },
-            { role: "user", content: `Disclosure: ${chunks[i]!}` }
+            { role: "user", content: `Disclosure: ${chunk}` },
+            { role: "user", content: `New features:` },
           ],
           model: "gpt-3.5-turbo",
+          //model: "gpt-4",
         });
-        const features = completion.choices[0]?.message.content
+        const features = completion.choices[0]?.message.content ?? ""
+        featuresList[index]=features
         //console.log("features: ", features)
         console.log(completion.choices[0])
-        if (features !== null && features !==undefined){
-          featureList = features
+        console.log("all features: \n", featuresList)
+      })
+      await Promise.all(openAiPromises)
+      
+      console.log("featuresList: ", featuresList)
+      const featureComparisonPromises = (async (list1:string, list2: string)=>{
+        const completion = await openai.chat.completions.create({
+          messages: [
+            { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
+            { role: "user", content: "Return only the unique features of these two lists of features, ignore any that are obvious, similar or repetitive." },
+            { role: "user", content: "Your goal is to return a useful conscise list of features to help your boss." },
+            { role: "user", content: `List one: ${list1}` },
+            { role: "user", content: `List two: ${list2}` },
+          ],
+          model: "gpt-3.5-turbo",
+          //model: "gpt-4",
+        });
+        const distilledFeatures = completion.choices[0]?.message.content ?? ""
+        return distilledFeatures
+      })
+      // need to make log(n) calls of "compare these two lists of features"
+      // stack + while loop
+      let round = 1
+      async function compareAndDistillFeatures(featuresList: string[]){
+        const stack = [...featuresList]
+        while (stack.length>1){
+          const roundPromises = []
+          for (let i=0; i<stack.length; i+=2){
+            const list1 = stack[i] || ""
+            const list2 = stack[i+1] || ""
+            roundPromises.push(featureComparisonPromises(list1, list2))
+          }
+          const results = await Promise.all(roundPromises)
+          console.log(`Round ${round}: `, results)
+          round += 1
+          stack.length = 0
+          stack.push(...results)
         }
-        console.log("all features: \n", featureList)
+        return stack[0] || ""
       }
       
-      const featureArray = featureList.split('\n')
-      console.log('featureArray: ')
-      console.log(featureArray)
+      const distilledFeatures = await compareAndDistillFeatures(featuresList)
+      console.log("distilled Features: ",distilledFeatures)
       
+      const featureArray = distilledFeatures.split('\n')
+
       const embeddings = new OpenAIEmbeddings({
         openAIApiKey: process.env.OPEN_API_KEY
       })
@@ -146,7 +184,6 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
           const loader = new PDFLoader(blob, {splitPages: false})
           const refText = await loader.load()
           const doc = new Document({pageContent:refText[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": session.metadata?.userId ?? "none"}})
-          console.log("NEW DOCUMENT: ", doc)
           refDocs.push(doc)        
         }))
       }
@@ -194,6 +231,9 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       for (let i=0; i<featureArray.length; i++){
         const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
         const fullFeature = featureArray[i]
+        console.log("ANALYZING FEATURE: ")
+        console.log("full feature: ", fullFeature)
+        console.log("current feature", currentFeature)
 
         if (currentFeature!==undefined &&fullFeature !== undefined){
           if (/^\d+/.test(fullFeature)){
@@ -225,10 +265,9 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
           }
         }
       })
-
       await pineconeIndex.namespace(session.metadata.userId).deleteAll()
-      
-      console.log("COMPLETED")
+      const endTime = Date.now() - startTime
+      console.log("Completed in: ", endTime/1000)
     }
 
     if (event.type === 'invoice.payment_succeeded') {
