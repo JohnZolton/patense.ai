@@ -55,7 +55,6 @@ const AdminPanel: NextPage = () => {
       }
     }
   )
-  const { mutate: runRecursiveCalls } = api.DocumentRouter.testRecursiveCalls.useMutation()
   
   return (
     <>
@@ -64,15 +63,13 @@ const AdminPanel: NextPage = () => {
         <meta name="description" content="AI Patent Assitant" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-        <div className="h-screen grainy">
+        <div className="min-h-screen grainy">
         <NavBar />
         <Toaster/>
           <SignedIn>
           <div className="flex flex-col items-center mt-10 gap-y-3">
           <Button onClick={handleButtonClick}>Delete All Files</Button>
           <Button onClick={runTestReport}>Run Test Report</Button>
-          <Button onClick={()=>runRecursiveCalls()}>Test recursive calls</Button>
-
           </div>
           </SignedIn>
           <SignedOut>

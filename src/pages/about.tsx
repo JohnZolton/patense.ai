@@ -61,7 +61,7 @@ const Reports: NextPage = () => {
                 Step 4
               </span>
               <span className='text-xl font-semibold'>Generate a Report</span>
-              <div>Last, we generate a report of all the inventive features, whether they are dislcosed in the references, and which references disclose them. Saving you and your clients time and money.</div>
+              <div>Last, we generate a report of all the inventive features, whether they are disclosed in the references, and which references disclose them. Saving you and your clients time and money.</div>
               
               <div className="flex items-center pt-3 justify-center">
               <Link
