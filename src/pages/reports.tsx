@@ -146,6 +146,7 @@ interface AnalysisDisplayProps {
   item: FeatureItem;
 }
 function AnalysisDisplay({item}:AnalysisDisplayProps){
+  if (item.analysis.length===0 || item.feature.length ===0){return null}
   return(
     <div className="flex w-full flex-col items-start border bg-gray-100 border-collapse rounded-lg p-2 gap-y-2 my-2">
       <div className="font-semibold">{item.feature}</div>
