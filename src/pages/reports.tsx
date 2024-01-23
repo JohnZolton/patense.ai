@@ -122,20 +122,24 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
   if (report===undefined){return(null)}
   return(
     <div id="capture" className="w-full max-w-xl items-center justify-center flex flex-col">
-            <div className="flex flex-row justify-between items-center w-2/3">
+    <div className="bg-gray-100 border px-3 py-2 border-collapse w-2/3 max-w-3xl rounded-md">
+
+            <div className="flex flex-row justify-between items-center w-full">
+
     <div className="font-semibold text-2xl">{report.title}</div>
     <div>{report.date.toLocaleDateString()}</div>
     </div>
-            <div className="flex flex-row justify-between w-2/3">
+            <div className="flex flex-row justify-between w-full">
             <div>References</div>
             <div className="flex flex-col">
           {report?.files.map((file, index)=>(
-            <div key={index}>{file.title}</div>
+            <div key={index} className="text-right">{file.title}</div>
           ))}
               
             </div>
               
             </div>
+    </div>
     {report.features.map((featureItem, index)=>(
       <AnalysisDisplay key={index} item={featureItem} />
     ))}

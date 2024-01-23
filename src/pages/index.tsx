@@ -96,13 +96,56 @@ const Home: NextPage = () => {
               </span>
               <span className='text-xl font-semibold'>Get your report</span>
               <span className='mt-2 text-zinc-700'>
-                It&apos;s that simple. Try it today -
-                it takes less than 5 minutes.
+                It&apos;s that simple. Try it today.
               </span>
             </div>
           </li>
         </ol>
         </div>
+        
+        <div className="max-w-xl items-center justify-center mx-auto pb-10">
+
+        <div className="flex items-center justify-center text-4xl my-5 font-semibold">How It Works</div>
+        <div>
+        {/* steps */}
+        <ol className='  space-y-4 flex flex-col items-start'>
+          <li className='md:flex-1'>
+            <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
+              <span className='text-xl font-semibold'>Inventive Feature Extraction</span>
+              <div>We use AI to scan through the entire specification to identify inventive elements.</div>
+            </div>
+          </li>
+          <li className='md:flex-1'>
+            <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
+              <span className='text-xl font-semibold'>Reference Conversion</span>
+              <div>Next we break the references into chunks and store them in a vector database. That lets us search the references for relevent portions.</div>
+            </div>
+          </li>
+          <li className='md:flex-1'>
+            <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
+              <span className='text-xl font-semibold'>AI Disclosure Analysis</span>
+              <div>Then we search that database for each inventive feature we identified and use AI to determine whether any relevant portions disclose it.</div>
+            </div>
+          </li>
+          <li className='md:flex-1'>
+            <div className='flex flex-col py-2 pl-4 space-y-2 border-l-4 border-zinc-300 md:border-l-0 md:border-t-2 md:pb-0 md:pl-0 md:pt-4'>
+              <span className='text-xl font-semibold'>Generate a Report</span>
+              <div>Last, we generate a report of all the inventive features, whether they are disclosed in the references, and which references disclose them. Saving you and your clients time and money.</div>
+              
+              <div className="flex items-center pt-3 justify-center">
+              <Link
+                href="home"
+                className={buttonVariants({
+                  size:'default'
+
+                })}
+              >Try it Today</Link>
+              </div>
+            </div>
+          </li>
+        </ol></div>
+        </div>
+
 
       </div>
     </>
