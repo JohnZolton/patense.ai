@@ -131,7 +131,7 @@ function LoadDisplay(){
     'Finishing up...'
   ];
   
-  const intervalDurations = [12000, 50000, 10000, 40000, 20000]; // Set varying intervals for each loading state
+  const intervalDurations = [30000, 1800000, 30000, 120000, 20000]; // Set varying intervals for each loading state
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
   useEffect(() => {
@@ -155,6 +155,7 @@ function LoadDisplay(){
     <div className="flex flex-col justify-center items-center py-3">
       <Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>
       <div>{loadingMessages[currentMessageIndex]}</div>
+      <div>This takes 5-10 minutes.</div>
     </div>
   )
 }
