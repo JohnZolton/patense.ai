@@ -98,11 +98,11 @@ export const documentRouter = createTRPCRouter({
       },
     })
 
-    const stripe = new Stripe(process.env.STRIPE_TEST_SECRET_KEY ?? '', {typescript: true, apiVersion: "2023-10-16"})
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {typescript: true, apiVersion: "2023-10-16"})
     const stripeSession = await stripe.checkout.sessions.create({
       line_items:[
         {
-          price: process.env.STRIPE_TEST_API_ID ?? '',
+          price: process.env.STRIPE_API_ID ?? '',
           quantity: 1,
         }
       ],
