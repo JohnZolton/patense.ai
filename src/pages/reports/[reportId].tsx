@@ -98,10 +98,6 @@ const Home: NextPage = () => {
           )}
           {appState === AppState.SHOW_RESULTS && (
             <div className="flex flex-col items-center justify-center max-w-xl mx-auto mt-5">
-              <div className="flex flex-row justify-center mb-4 gap-x-4">
-              <Link href="reports" className={buttonVariants({})}>All Reports</Link>
-                <Button onClick={()=>{void handleDownloadClick()}}>Download Report</Button>
-              </div>
           <div className="flex flex-col items-center justify-center max-w-xl mx-auto">
             <AnalysisContainer report={report} />
           </div>
