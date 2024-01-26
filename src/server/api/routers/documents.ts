@@ -179,6 +179,32 @@ export const documentRouter = createTRPCRouter({
       console.log("distilled Features: ",distilledFeatures)
       return 
   }),
+
+  getReportById:privateProcedure.input(
+    z.object({
+      reportId: z.string()
+    })
+  )
+  .mutation(async({ctx, input})=>{
+    const report = await ctx.prisma.oAReport.findFirst({
+      where: {
+        userID: ctx.userId,
+        id: input.reportId,
+      },
+      orderBy:[{date:"desc"}],
+      include:{
+        features: true,
+        files: true
+      }
+    })
+    if (!report){
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message:"No reports found with that user"
+      })
+    }
+    return report
+  }),
   getLatestReport:privateProcedure.mutation(async({ctx})=>{
     const report = await ctx.prisma.oAReport.findFirst({
       where: {
