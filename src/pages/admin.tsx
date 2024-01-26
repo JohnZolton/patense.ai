@@ -36,7 +36,7 @@ const AdminPanel: NextPage = () => {
     const result = makeStripeCheckout({
       spec:{
         key: "49bfe0d0-b3e5-4f8a-b260-f4ce95fa6297-f0eqdz.pdf",
-        title: "test spec file"
+        title: "Specification"
       },
       references: [
         {title: "adams­.pdf", key: "1144a280-f45f-474e-8a71-a275ca830770-ddq3ib.pdf"},

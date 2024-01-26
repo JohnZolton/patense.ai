@@ -75,7 +75,7 @@ model OAReport {
   specKey String
   features FeatureItem[]
   files Reference[]
-  @@index([userID, stripeTxId])
+  @@index([userID, stripeTxId, id])
 }
 
 model FeatureItem {

@@ -13,29 +13,16 @@ import { Button } from "@/components/ui/button";
 import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 import { buttonVariants } from "@/components/ui/button";
-
+import { useRouter, NextRouter } from "next/router";
 
 
 const Reports: NextPage = () => {
-  const [selectedReport, setSelectedReport] = useState<(OAReport & {
-    features: FeatureItem[];
-    files: Reference[];
-})>()
+  const [selectedReport, setSelectedReport] = useState<(OAReport)>()
 
+  const router = useRouter()
 
   const { data: reports, isLoading: reportsLoading } = api.DocumentRouter.getAllReports.useQuery()
   
-  async function handleDownloadClick(){
-    console.log("download clicked")
-    if (selectedReport){
-      try{
-        const blob = await pdf((<MyDocument selectedReport={selectedReport}/>)).toBlob()
-        saveAs(blob, selectedReport.title)
-      } catch(error){
-        console.error("error downloading: ", error)
-      }
-    }
-  }
   function handleButtonClick(index:number){
     if (reports && reports[index]!== undefined){
       setSelectedReport(reports[index])  
@@ -63,18 +50,9 @@ const Reports: NextPage = () => {
             <div>No reports</div>
           )}
             {(!selectedReport) && reports && reports.map((report, index)=>(
-              <ReportSelector key={index} report={report} index={index} setSelectedReport={handleButtonClick}/>
+              <ReportSelector router={router} key={index} report={report} index={index} setSelectedReport={handleButtonClick}/>
             ))
             }
-          {selectedReport && 
-            <div>
-              <div className="flex flex-row justify-center mb-4 mt-2 gap-x-4">
-                <Button onClick={()=>setSelectedReport(undefined)}>All Reports</Button>
-                <Button onClick={()=>{void handleDownloadClick()}}>Download Report</Button>
-              </div>
-                <AnalysisContainer report={selectedReport} />
-          </div>
-          }
           </div>
           </SignedIn>
           <SignedOut>
@@ -94,17 +72,19 @@ const Reports: NextPage = () => {
 export default Reports;
 
 interface ReportSelectorProps {
-  report: OAReport & {
-    files: Reference[];
-    features: FeatureItem[]};
-  index: number
+  report: OAReport;
+  index: number;
+  router: NextRouter;
   setSelectedReport: (index: number) => void;
 }
 
-function ReportSelector({report, setSelectedReport, index}:ReportSelectorProps){
+function ReportSelector({report, setSelectedReport, index, router}:ReportSelectorProps){
+  async function goToSelectedReport(){
+    await router.push({pathname: "/reports/[pid]", query:{pid: report.id}})
+  }
   return(
     <div className="w-full items-center justify-center text-center">
-      <button key={index} onClick={()=>setSelectedReport(index)} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">
+      <button key={index} onClick={void goToSelectedReport()} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">
         {report.title} {report.completed?? <Loader2 className="animate-spin h-8 w-8" />}
         </button>
     </div>
@@ -141,15 +121,16 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
             </div>
     </div>
     {report.features.map((featureItem, index)=>(
-      <AnalysisDisplay key={index} item={featureItem} />
+      <AnalysisDisplay key={index} index={index} item={featureItem} />
     ))}
     </div>
   )
 }
 interface AnalysisDisplayProps {
   item: FeatureItem;
+  index: number;
 }
-function AnalysisDisplay({item}:AnalysisDisplayProps){
+function AnalysisDisplay({item, index}:AnalysisDisplayProps){
   if (item.analysis.length===0 || item.feature.length ===0){return null}
   return(
     <div className="flex w-full flex-col items-start border bg-gray-100 border-collapse rounded-lg p-2 gap-y-2 my-2">
@@ -214,7 +195,7 @@ const PDFContainer = ({ report }: AnalysisContainerProps) => {
         {report.title} - {report.date.toLocaleDateString()}
       </Text>
       {report.features.map((featureItem, index) => (
-        <PDFDisplay key={index} item={featureItem} />
+        <PDFDisplay index={index} key={index} item={featureItem} />
       ))}
     </View>
   );
