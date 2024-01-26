@@ -98,11 +98,14 @@ export const documentRouter = createTRPCRouter({
       },
     })
 
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {typescript: true, apiVersion: "2023-10-16"})
+    //UPDATE SO TEST MODE IF LOCAL HOST // John Zolton
+    const stripeKey = process.env.NODE_ENV === "development" ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY
+    const itemAPIId = process.env.NODE_ENV === "development" ? process.env.STRIPE_TEST_API_ID : process.env.STRIPE_API_ID
+    const stripe = new Stripe(stripeKey ?? '', {typescript: true, apiVersion: "2023-10-16"})
     const stripeSession = await stripe.checkout.sessions.create({
       line_items:[
         {
-          price: process.env.STRIPE_API_ID ?? '',
+          price: itemAPIId || "",
           quantity: 1,
         }
       ],
