@@ -14,6 +14,7 @@ import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer
 import { saveAs } from 'file-saver';
 import { buttonVariants } from "@/components/ui/button";
 import { useRouter, NextRouter } from "next/router";
+import Link from "next/link";
 
 
 const Reports: NextPage = () => {
@@ -79,14 +80,22 @@ interface ReportSelectorProps {
 }
 
 function ReportSelector({report, setSelectedReport, index, router}:ReportSelectorProps){
-  async function goToSelectedReport(){
-    await router.push({pathname: "/reports/[pid]", query:{pid: report.id}})
-  }
   return(
-    <div className="w-full items-center justify-center text-center">
-      <button key={index} onClick={void goToSelectedReport()} className="h-12 my-4 max-w-xl w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50">
-        {report.title} {report.completed?? <Loader2 className="animate-spin h-8 w-8" />}
-        </button>
+    <div className="w-full max-w-xl">
+      <Link 
+      className="w-full flex my-4 flex-row  justify-center items-center"
+      href={`/reports/${report.id}`}>
+    <div key={index} className="
+h-12 w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50
+    ">
+          <div className="flex border h-full p-2 flex-row justify-between w-full items-center ">
+            <div className="font-semibold">{report.title}</div>
+            {report.completed?? <Loader2 className="animate-spin h-8 w-8" />}
+            <div>{report.date.toLocaleDateString()}</div>
+          </div>
+    </div>
+        </Link>
+
     </div>
   )
 }
@@ -102,23 +111,23 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
   if (report===undefined){return(null)}
   return(
     <div id="capture" className="w-full max-w-xl items-center justify-center flex flex-col">
-    <div className="bg-gray-100 border px-3 py-2 border-collapse w-2/3 max-w-3xl rounded-md">
+      <div className="bg-gray-100 border px-3 py-2 border-collapse w-2/3 max-w-3xl rounded-md">
+        <div className="flex flex-row justify-between items-center w-full">
+          <div className="font-semibold text-2xl">{report.title}</div>
+          <div>{report.date.toLocaleDateString()}</div>
+        </div>
+        <div className="flex flex-row justify-between w-full">
+        <div className="flex flex-col justify-between">
+          <div>References</div>
 
-            <div className="flex flex-row justify-between items-center w-full">
-
-    <div className="font-semibold text-2xl">{report.title}</div>
-    <div>{report.date.toLocaleDateString()}</div>
-    </div>
-            <div className="flex flex-row justify-between w-full">
-            <div>References</div>
-            <div className="flex flex-col">
-          {report?.files.map((file, index)=>(
-            <div key={index} className="text-right">{file.title}</div>
-          ))}
-              
-            </div>
-              
-            </div>
+        <Button onClick={()=>{console.log("todo")}}>Download</Button>
+        </div>
+          <div className="flex flex-col">
+            {report?.files.map((file, index)=>(
+              <div key={index} className="text-right">{file.title}</div>
+            ))}
+          </div>
+        </div>
     </div>
     {report.features.map((featureItem, index)=>(
       <AnalysisDisplay key={index} index={index} item={featureItem} />

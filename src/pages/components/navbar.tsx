@@ -22,13 +22,13 @@ export const NavBar = () => {
           </SignedOut>
           <SignedIn>
               <Link
-                href="home"
+                href="/home"
                 className={buttonVariants({
                   size:'sm'
                 })}
               >New Report</Link>
               <Link
-                href="reports"
+                href="/reports"
                 className={buttonVariants({
                   variant:'ghost',
                   size:'sm'

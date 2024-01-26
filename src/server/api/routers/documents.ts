@@ -230,12 +230,9 @@ export const documentRouter = createTRPCRouter({
     const reports = await ctx.prisma.oAReport.findMany({
       where: {
         userID: ctx.userId,
+        paid:true,
       },
       orderBy: [{ date: "desc"}],
-      include: {
-        features: true,
-        files: true,
-      }
     })
     if (reports[0]&&reports[0]){
     //console.log(reports[0].features[0])
