@@ -38,9 +38,9 @@ const {toast}=useToast()
         <div className={`min-h-screen`}>
         <NavBar />
         <MaxWidthWrapper className="flex flex-col items-center gap-y-4">
-          <div className="text-3xl font-semibold mt-4">About Us</div>
+          <div className="text-3xl font-semibold mt-5">About Us</div>
           <p>We are software engineers and patent attorneys that believe Large Language Models (AI) will revolutionize patent prosecution.</p>
-          <p>Our mission is to build tools that make you better practitioners. To give you greater insight and analysis so that you can be more effective counsel.</p>
+          <p>Our mission is to build tools that make you better. To give you greater insight and analysis so that you can be more effective counsel.</p>
           <p>Large Language Models can crunch data at hundreds of pages per minute. We leverage that power to analyze disclosures and prior art references so that you can better respond to office actions.</p>
           <Button onClick={copyEmailToClipboard}>Contact Us</Button>
         </MaxWidthWrapper>

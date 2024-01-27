@@ -13,10 +13,10 @@ export const NavBar = () => {
         <MaxWidthWrapper>
         <div className="flex h-14 items-center justify-between border-b border-zinc-200'">
           <SignedOut>
-              <SignInButton redirectUrl="home">
+              <SignInButton redirectUrl="/home">
               <Button className={buttonVariants({size:'sm'})} size={'lg'}>New Report</Button>
               </SignInButton>
-              <SignInButton redirectUrl="reports">
+              <SignInButton redirectUrl="/reports">
               <button className={buttonVariants({size:'sm', variant:'ghost'})} >All Reports</button>
               </SignInButton>
           </SignedOut>
@@ -40,7 +40,7 @@ export const NavBar = () => {
           </SignedIn>
 
               <Link
-                href="about"
+                href="/about"
                 className={buttonVariants({
                   variant:'ghost',
                   size:'sm'

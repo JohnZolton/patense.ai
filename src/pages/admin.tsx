@@ -32,6 +32,22 @@ const AdminPanel: NextPage = () => {
   function handleButtonClick(){
     deleteFiles()
   }
+  function runLongTestReport(){
+    const result = makeStripeCheckout({
+      spec:{
+        key: "459b361b-f67f-4b56-946b-ddaac15caffb-ftictz.pdf",
+        title: "100 page Spec"
+      },
+      references: [
+        {title: "adams­.pdf", key: "1144a280-f45f-474e-8a71-a275ca830770-ddq3ib.pdf"},
+        {title: "stitt.pdf", key: "2a44acbc-a90b-408e-a7ac-19adf6cca35a-exk3d.pdf"},
+        {title: "polley.pdf", key: "5b99bb7d-7299-4f6b-9af3-7432f6be9a1e-iwstf2.pdf"},
+        {title: "Kuenzel.pdf", key: "64d7da06-7479-4af4-897e-caba8a82dd9a-gt9zil.pdf"},
+        {title: "williams.pdf", key: "daffa979-0bb4-4227-a442-d47111eb5f47-dgx25r.pdf"},
+        {title: "Nachtegaal.pdf", key: "6fddbc48-92d3-4ed6-b3f3-76faa07e96e4-utvtoz.pdf"},
+      ]
+    })
+  }
   function runTestReport(){
     const result = makeStripeCheckout({
       spec:{
@@ -70,6 +86,7 @@ const AdminPanel: NextPage = () => {
           <div className="flex flex-col items-center mt-10 gap-y-3">
           <Button onClick={handleButtonClick}>Delete All Files</Button>
           <Button onClick={runTestReport}>Run Test Report</Button>
+          <Button onClick={runLongTestReport}>Run Long Test Report</Button>
           </div>
           </SignedIn>
           <SignedOut>

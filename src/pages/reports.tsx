@@ -83,15 +83,18 @@ function ReportSelector({report, setSelectedReport, index, router}:ReportSelecto
   return(
     <div className="w-full max-w-xl">
       <Link 
-      className="w-full flex my-4 flex-row  justify-center items-center"
+      className="w-full flex my-2 flex-row  justify-center items-center"
       href={`/reports/${report.id}`}>
     <div key={index} className="
-h-12 w-full border-gray-600 border border-dashed rounded-lg bg-gray-100 hover:bg-gray-50
+h-12 w-full border-gray-600 border border-dashed rounded-lg bg-gray-50 hover:bg-gray-100
     ">
           <div className="flex border h-full p-2 flex-row justify-between w-full items-center ">
             <div className="font-semibold">{report.title}</div>
-            {report.completed?? <Loader2 className="animate-spin h-8 w-8" />}
+            <div className="flex flex-row items-center">
+            {!report.completed && <Loader2 className="animate-spin h-8 w-8" />}
             <div>{report.date.toLocaleDateString()}</div>
+
+            </div>
           </div>
     </div>
         </Link>
@@ -110,8 +113,8 @@ interface AnalysisContainerProps {
 export function AnalysisContainer({report}:AnalysisContainerProps){
   if (report===undefined){return(null)}
   return(
-    <div id="capture" className="w-full max-w-xl items-center justify-center flex flex-col">
-      <div className="bg-gray-100 border px-3 py-2 border-collapse w-2/3 max-w-3xl rounded-md">
+    <div id="capture" className="w-full max-w-2xl items-center justify-center flex flex-col">
+      <div className="bg-gray-100 border-gray-200 shadow-md border p-3 border-collapse w-full mb-2  rounded-md">
         <div className="flex flex-row justify-between items-center w-full">
           <div className="font-semibold text-2xl">{report.title}</div>
           <div>{report.date.toLocaleDateString()}</div>
@@ -120,7 +123,7 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
         <div className="flex flex-col justify-between">
           <div>References</div>
 
-        <Button onClick={()=>{console.log("todo")}}>Download</Button>
+        <Button className="" onClick={()=>{console.log("todo")}}>Download</Button>
         </div>
           <div className="flex flex-col">
             {report?.files.map((file, index)=>(
@@ -129,7 +132,7 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
           </div>
         </div>
     </div>
-    {report.features.map((featureItem, index)=>(
+    {report.features.filter(featureItem=>featureItem.feature.length>0).map((featureItem, index)=>(
       <AnalysisDisplay key={index} index={index} item={featureItem} />
     ))}
     </div>
@@ -142,8 +145,8 @@ interface AnalysisDisplayProps {
 function AnalysisDisplay({item, index}:AnalysisDisplayProps){
   if (item.analysis.length===0 || item.feature.length ===0){return null}
   return(
-    <div className="flex w-full flex-col items-start border bg-gray-100 border-collapse rounded-lg p-2 gap-y-2 my-2">
-      <div className="font-semibold">{item.feature}</div>
+    <div className="flex w-full flex-col bg-gray-100 border-gray-200 shadow-md items-start border  border-collapse rounded-lg p-2 gap-y-2 my-2">
+      <div className="font-semibold">{index+1}. {item.feature}</div>
       <div className="">Analysis: {item.analysis}</div>
       <div className="text-sm">Source: {item.source}</div>
     </div>
