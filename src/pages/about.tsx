@@ -42,7 +42,10 @@ const {toast}=useToast()
           <p>We are software engineers and patent attorneys that believe Large Language Models (AI) will revolutionize patent prosecution.</p>
           <p>Our mission is to build tools that make you better. To give you greater insight and analysis so that you can be more effective counsel.</p>
           <p>Large Language Models can crunch data at hundreds of pages per minute. We leverage that power to analyze disclosures and prior art references so that you can better respond to office actions.</p>
+          <div className="flex flex-row gap-x-4">
+          <Link className={buttonVariants({variant:"link"})} href={"/privacy"}>Privacy Policy</Link>
           <Button onClick={copyEmailToClipboard}>Contact Us</Button>
+          </div>
         </MaxWidthWrapper>
         </div>
         </div>

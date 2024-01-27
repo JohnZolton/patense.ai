@@ -4,7 +4,7 @@ import Head from "next/head";
 import { api } from "~/utils/api";
 
 import React, { useState, useRef, ChangeEvent, useEffect, Dispatch, SetStateAction } from 'react';
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 
 import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check, Ban } from 'lucide-react'
 import { NavBar } from "~/pages/components/navbar";
@@ -16,14 +16,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import {UploadDropzone} from "@uploadthing/react"
 import { OurFileRouter } from "~/server/uploadthing";
+import { User } from "@clerk/nextjs/dist/api";
+import { useRouter } from "next/router";
 
 
 
 
 
 const AdminPanel: NextPage = () => {
+  const { isLoaded, userId, sessionId, getToken } = useAuth();
 
-  const {toast}=useToast()
   
   const {mutate: deleteFiles} = api.DocumentRouter.deleteAllFiles.useMutation({
     onSuccess: ()=>{console.log("FILES DELETED")}
@@ -71,6 +73,9 @@ const AdminPanel: NextPage = () => {
       }
     }
   )
+  if (userId!=="user_2O41MpqHgq6YqPzFrzXXDyUgaTr"){
+      return null
+    }
   
   return (
     <>
