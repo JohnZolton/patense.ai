@@ -52,6 +52,7 @@ const Home: NextPage = () => {
         <div className="grainy">
         <div className="min-h-screen">
         <NavBar />
+        <Toaster/>
         <MaxWidthWrapper>
         <div className="gap-y-3 flex flex-col py-3 pb-10">
         <div className="font-semibold text-3xl text-center ">Privacy Policy</div>
