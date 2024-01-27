@@ -17,6 +17,7 @@ import { OAReport, FeatureItem, Reference } from "@prisma/client";
 import Link from "next/link";
 import { AnalysisContainer } from "../reports";
 import { useRouter } from "next/router";
+import { error } from "console";
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -37,6 +38,8 @@ const Home: NextPage = () => {
   const reportId = router.query.reportId as string
   console.log("reportId: ",reportId)
   const [appState, setAppState] = useState<AppState>(AppState.LOADING);
+  const [errorCount, setErrorCount] = useState(0);
+  
 
   const { mutate: getReport } = api.DocumentRouter.getReportById.useMutation({
     onSuccess: (report)=>{
@@ -50,7 +53,12 @@ const Home: NextPage = () => {
         setReport(report)
     },
     onError: ()=>{
-      void router.push("/reports")
+      const newCount = errorCount+1
+      setErrorCount(newCount)
+      console.log("error count: ", errorCount)
+      if (errorCount > 1){
+        void router.push("/reports")
+      }
     }
   })
 
@@ -122,6 +130,7 @@ export default Home;
 
 function LoadDisplay(){
   const loadingMessages = [
+    '',
     'Processing documents...',
     'Extracting inventive elements...',
     'Converting references to vectors...',
@@ -130,31 +139,30 @@ function LoadDisplay(){
     'Finishing up...'
   ];
   
-  const intervalDurations = [30000, 1800000, 30000, 120000, 20000]; // Set varying intervals for each loading state
+  const intervalDurations = [3000, 30000, 1800000, 30000, 120000, 20000]; // Set varying intervals for each loading state
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
   useEffect(() => {
-    // Set up an interval to cycle through loading messages every 2000 milliseconds (2 seconds)
-    const intervalId = setInterval(() => {
+    const intervalId = setTimeout(() => {
       if (currentMessageIndex < loadingMessages.length -1){
         setCurrentMessageIndex((prevIndex) => prevIndex + 1);
-        const nextIndex = currentMessageIndex + 1;
-        const nextInterval = intervalDurations[nextIndex];
-        setTimeout(() => clearInterval(intervalId), nextInterval);
       } else {
-        setCurrentMessageIndex(5)
+        setCurrentMessageIndex(6)
       }
     }, intervalDurations[currentMessageIndex]);
-
-    // Clear the interval when the component unmounts or is no longer needed
     return () => clearInterval(intervalId);
-  }, []); // Empty dependency array ensures the effect runs only once
+  }, [currentMessageIndex]); 
   
   return(
     <div className="flex flex-col justify-center items-center py-3">
       <Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>
+      { loadingMessages[currentMessageIndex] && (
+        <>
       <div>{loadingMessages[currentMessageIndex]}</div>
       <div>This takes 5-10 minutes.</div>
+        </>
+      )
+      }
     </div>
   )
 }
