@@ -81,3 +81,11 @@
 .scrollbar-thumb-rounded::-webkit-scrollbar-thumb {
   border-radius: 7px;
 }
+
+@media print {
+  .analysis-paragraph {
+    break-inside: avoid;
+    break-before: auto;
+    page-break-inside: avoid;
+  }
+}

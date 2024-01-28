@@ -5,7 +5,7 @@ import { api } from "~/utils/api";
 import React, { useState, } from 'react';
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check } from 'lucide-react'
+import {Cloud, File, FileCogIcon, Filter, Loader2, Trash2, Check, ArrowDownToLine } from 'lucide-react'
 import { NavBar } from "~/pages/components/navbar";
 import { OAReport, FeatureItem, Reference } from "@prisma/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,15 @@ import { saveAs } from 'file-saver';
 import { buttonVariants } from "@/components/ui/button";
 import { useRouter, NextRouter } from "next/router";
 import Link from "next/link";
+import { useRef } from "react";
+import { useReactToPrint } from 'react-to-print';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 
 const Reports: NextPage = () => {
@@ -111,9 +120,22 @@ interface AnalysisContainerProps {
 }
 
 export function AnalysisContainer({report}:AnalysisContainerProps){
+  
+  const handlePrint = useReactToPrint({
+      content:()=>componentRef.current
+  })
+  const componentRef = useRef(null)
+
   if (report===undefined){return(null)}
+  function handleDownloadClick(){
+    setTimeout(()=>{
+      handlePrint()
+    },200)
+  }
   return(
-    <div id="capture" className="w-full max-w-2xl items-center justify-center flex flex-col">
+    <div ref={componentRef} className="mx-auto justify-center items-center flex"
+    >
+    <div className="w-full max-w-2xl mt-4 items-center justify-center flex flex-col">
       <div className="bg-gray-100 border-gray-200 shadow-md border p-3 border-collapse w-full mb-2  rounded-md">
         <div className="flex flex-row justify-between items-center w-full">
           <div className="font-semibold text-2xl">{report.title}</div>
@@ -123,7 +145,19 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
         <div className="flex flex-col justify-between">
           <div>References</div>
 
-        <Button className="" onClick={()=>{console.log("todo")}}>Download</Button>
+        <div>
+        <TooltipProvider>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger>
+              <Button className="w-12 bg-gray-100" variant={"outline"} onClick={handleDownloadClick}>
+                <ArrowDownToLine size={24} className=""/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        </div>
         </div>
           <div className="flex flex-col">
             {report?.files.map((file, index)=>(
@@ -133,8 +167,9 @@ export function AnalysisContainer({report}:AnalysisContainerProps){
         </div>
     </div>
     {report.features.filter(featureItem=>featureItem.feature.length>0).map((featureItem, index)=>(
-      <AnalysisDisplay key={index} index={index} item={featureItem} />
+      <AnalysisDisplay  key={index} index={index} item={featureItem} />
     ))}
+    </div>
     </div>
   )
 }
@@ -145,94 +180,10 @@ interface AnalysisDisplayProps {
 function AnalysisDisplay({item, index}:AnalysisDisplayProps){
   if (item.analysis.length===0 || item.feature.length ===0){return null}
   return(
-    <div className="flex w-full flex-col bg-gray-100 border-gray-200 shadow-md items-start border  border-collapse rounded-lg p-2 gap-y-2 my-2">
+    <div className="break-inside-avoid break-before-auto flex w-full flex-col bg-gray-100 border-gray-200 shadow-md items-start border  border-collapse rounded-lg p-2 gap-y-2 my-2">
       <div className="font-semibold">{index+1}. {item.feature}</div>
       <div className="">Analysis: {item.analysis}</div>
       <div className="text-sm">Source: {item.source}</div>
     </div>
   )
 }
-
-
-
-const pdfStyles = StyleSheet.create({
-  page: {
-    flexDirection: 'row',
-    backgroundColor: 'rgb(243 244 246)',
-    justifyContent: 'center', // Center content horizontally
-    alignItems: 'center', // Center content vertically
-    fontFamily: "Helvetica"
-  },
-  section: {
-    margin: 5,
-    padding: 10,
-    flexGrow: 1,
-    alignItems: 'flex-start',
-    alignContent: 'flex-start',
-    backgroundColor: '#E4E4E4',
-    borderRadius: 3
-  },
-  container: {
-    width: '100%',
-    maxWidth: 600, // Adjust the maximum width as needed
-    margin: 'auto',
-    textAlign: 'left'
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 16,
-    textAlign: 'center', // Center content vertically
-  },
-  header: {
-    textAlign: 'left',
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginTop: 20,
-    marginLeft: 20
-  }
-});
-
-// AnalysisContainer component
-const PDFContainer = ({ report }: AnalysisContainerProps) => {
-  if (!report) {
-    return null;
-  }
-
-  return (
-    <View style={pdfStyles.container}>
-      <Text style={pdfStyles.header}>Patense.ai</Text>
-      <Text style={pdfStyles.title}>
-        {report.title} - {report.date.toLocaleDateString()}
-      </Text>
-      {report.features.map((featureItem, index) => (
-        <PDFDisplay index={index} key={index} item={featureItem} />
-      ))}
-    </View>
-  );
-};
-
-// AnalysisDisplay component
-const PDFDisplay = ({ item }: AnalysisDisplayProps) => (
-  <View style={pdfStyles.section}>
-    <Text style={{ fontWeight: 'bold', fontSize:12 }}>{item.feature}</Text>
-    <Text style={{fontSize: 12, marginVertical: 10}}>Analysis: {item.analysis}</Text>
-    <Text style={{ fontSize: 10 }}>Source: {item.source}</Text>
-  </View>
-);
-
-interface MyDocumentProps {
-  selectedReport: OAReport & {
-    features: FeatureItem[];
-    files: Reference[];
-};
-}
-// MyDocument component
-const MyDocument = ({ selectedReport }: MyDocumentProps) => (
-  <Document>
-    <Page size="A4" style={pdfStyles.page}>
-      <PDFContainer report={selectedReport} />
-    </Page>
-  </Document>
-);

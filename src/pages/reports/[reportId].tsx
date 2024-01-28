@@ -82,11 +82,6 @@ const Home: NextPage = () => {
   
   const {toast}=useToast()
   
-  function handleDownloadClick(){
-    console.log("todo")
-  }
-  
-  
   return (
     <>
       <Head>
