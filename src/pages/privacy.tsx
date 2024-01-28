@@ -17,6 +17,13 @@ import { OAReport, FeatureItem, Reference } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import MaxWidthWrapper from "./components/maxwidthwrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -37,6 +44,7 @@ const Home: NextPage = () => {
           title:"Email Copied to Clipboard",
           content:"support@patense.ai",
           variant:"default",
+
         }))
         .catch((error) => console.error("Copy failed", error));
       }
@@ -74,7 +82,14 @@ const Home: NextPage = () => {
         <div>We reserve the right to update and make changes to this Privacy Policy at any time. Any changes will be effective immediately upon posting on our website. It is your responsibility to review this Privacy Policy periodically to stay informed about our information practices.</div>
 
         <div className="flex items-center flex-row justify-center">
-        <Button onClick={copyEmailToClipboard}>Contact Us</Button>
+        <TooltipProvider>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger>
+              <Button onClick={copyEmailToClipboard}>Contact Us</Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy Email Address</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         </div>
         </div>

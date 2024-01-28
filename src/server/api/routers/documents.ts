@@ -124,60 +124,6 @@ export const documentRouter = createTRPCRouter({
     return stripeSession.url
   }),
   
-  testRecursiveCalls:privateProcedure.mutation(async({ctx})=>{
-    const groceryList: string[] = [
-      "1. Fresh Apples, Milk, Bread, Eggs, Spinach, Chicken, Tomatoes, Pasta, Cheese, Yogurt",
-      "2. Cereal, Orange Juice, Bananas, Avocado, Bacon, Lettuce, Coffee, Rice, Sausages, Blueberries",
-      "3. Broccoli, Almond Milk, Peanut Butter, Jam, Bagels, Ground Beef, Onions, Potatoes, Carrots, Ice Cream",
-      "4. Grapes, Hummus, Whole Wheat Bread, Salmon, Bell Peppers, Avocado, Quinoa, Greek Yogurt, Strawberries, Honey",
-      "5. Oatmeal, Applesauce, Almonds, Green Tea, Cauliflower, Shrimp, Feta Cheese, Tortillas, Salsa, Pineapple",
-      "6. Cottage Cheese, Raspberries, Granola, Coconut Water, Dark Chocolate, Asparagus, Turkey, Basil, Parmesan Cheese, Breadsticks",
-      "7. Black Beans, Sweet Potatoes, Almond Butter, Cherry Tomatoes, Orange, Lemon, Ground Turkey, Mozzarella Cheese, Hummus, Broccoli",
-      "8. Kiwi, Chia Seeds, Whole Grain Crackers, Coconut Milk, Pears, Zucchini, Tofu, Whole Wheat Pasta, Mango, Pistachios",
-      "9. Cauliflower Rice, Cashews, Sparkling Water, Celery, Apples, Pork Chops, Pomegranate, Maple Syrup, Brown Rice, Feta Cheese",
-      "10. Lemonade, Mixed Nuts, Brussels Sprouts, Cranberries, Green Beans, Tilapia, Cantaloupe, Dark Leafy Greens, Ice Cream Cones, Sourdough Bread"
-    ];
-    
-    const openai = new OpenAI();
-    const featureComparisonPromises = (async (list1:string, list2: string)=>{
-      const completion = await openai.chat.completions.create({
-        messages: [
-          { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
-          { role: "user", content: "Return only the unique elements of these two lists of features, ignore any that are stupid, obvious or repetitive" },
-          { role: "user", content: `List one: ${list1}` },
-          { role: "user", content: `List two: ${list2}` },
-        ],
-        model: "gpt-3.5-turbo",
-        //model: "gpt-4",
-      });
-      const distilledFeatures = completion.choices[0]?.message.content ?? ""
-      return distilledFeatures ?? ""
-    })
-    // need to make log(n) calls of "compare these two lists of features"
-    // stack + while loop
-    let round = 1
-    async function compareAndDistillFeatures(featuresList: string[]){
-      const stack = [...featuresList]
-      while (stack.length>1){
-        const roundPromises = []
-        for (let i=0; i<stack.length; i+=2){
-          const list1 = stack[i] || ""
-          const list2 = stack[i+1] || ""
-          roundPromises.push(featureComparisonPromises(list1, list2))
-        }
-        const results = await Promise.all(roundPromises)
-        console.log(`Round ${round}: `, results)
-        round += 1
-        stack.length = 0
-        stack.push(...results)
-      }
-      return stack[0] || ""
-    }
-      
-      const distilledFeatures = await compareAndDistillFeatures(groceryList)
-      console.log("distilled Features: ",distilledFeatures)
-      return 
-  }),
 
   getReportById:privateProcedure.input(
     z.object({

@@ -8,6 +8,13 @@ import Link from "next/link";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 
 
@@ -44,7 +51,17 @@ const {toast}=useToast()
           <p>Large Language Models can crunch data at hundreds of pages per minute. We leverage that power to analyze disclosures and prior art references so that you can better respond to office actions.</p>
           <div className="flex flex-row gap-x-4">
           <Link className={buttonVariants({variant:"link"})} href={"/privacy"}>Privacy Policy</Link>
-          <Button onClick={copyEmailToClipboard}>Contact Us</Button>
+        <div>
+        <TooltipProvider>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger>
+              <Button onClick={copyEmailToClipboard}>Contact Us</Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy Email Address</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+          
+        </div>
           </div>
         </MaxWidthWrapper>
         </div>
