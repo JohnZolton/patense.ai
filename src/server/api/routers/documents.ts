@@ -124,6 +124,66 @@ export const documentRouter = createTRPCRouter({
     
     return stripeSession.url
   }),
+  demoSaveDocsAndSendStripe: privateProcedure.input(
+    z.object({
+      spec: z.object({
+        key: z.string(),
+        title: z.string(),
+      }),
+      references: z.array(
+        z.object({
+          key: z.string(),
+          title: z.string()
+        })
+      )
+    })
+   )
+   .mutation(async ({ ctx, input})=>{
+    console.log(ctx.userId)
+    console.log("spec: ", input.spec.key)
+    console.log("references: ", input.references.length)
+    
+    const createdJob = await ctx.prisma.oAReport.create({
+      data:{
+        userID:ctx.userId,
+        specKey: input.spec.key,
+        title: input.spec.title,
+        files: {
+          create: input.references.map((reference)=>({
+            userId: ctx.userId,
+            key: reference.key,
+            title: reference.title,
+          }))
+        },
+      },
+    })
+
+    const stripeKey = process.env.STRIPE_TEST_SECRET_KEY 
+    const itemAPIId = process.env.STRIPE_TEST_API_ID
+    //const itemAPIId = "price_1OVgliA0pn7vugH4i4v3d4dN" //cheap live key
+    const stripe = new Stripe(stripeKey ?? '', {typescript: true, apiVersion: "2023-10-16"})
+    const stripeSession = await stripe.checkout.sessions.create({
+      line_items:[
+        {
+          price: itemAPIId || "",
+          quantity: 1,
+        }
+      ],
+      mode: "payment",
+      success_url: `${OUR_DOMAIN}/reports/${createdJob.id}`,
+      cancel_url: `${OUR_DOMAIN}/home`,
+      automatic_tax: {enabled:true},
+      payment_intent_data:{
+        metadata: {
+          userId: ctx.userId,
+          txId: createdJob.id
+        }
+      }
+    })
+    console.log("STRIPE SESSION ID: ",stripeSession.id)
+    
+    return stripeSession.url
+  }),
   
 
   getReportById:privateProcedure.input(
