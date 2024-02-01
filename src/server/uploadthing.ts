@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { getAuth } from "@clerk/nextjs/server";
 import {PDFLoader} from 'langchain/document_loaders/fs/pdf'
+import { UTApi } from "uploadthing/server";
 
 const f = createUploadthing();
  
