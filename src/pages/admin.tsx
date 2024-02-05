@@ -66,6 +66,11 @@ const AdminPanel: NextPage = () => {
       ]
     })
   }
+  const { mutate: testVectorDB } = api.DocumentRouter.testAnalyzeFeatures.useMutation(
+  )
+  function handleVecDBButton(){
+    testVectorDB()
+  }
   const { mutate: makeStripeCheckout } = api.DocumentRouter.saveDocsAndSendStripe.useMutation(
     {
       onSuccess: (url)=>{
@@ -92,6 +97,7 @@ const AdminPanel: NextPage = () => {
           <Button onClick={handleButtonClick}>Delete All Files</Button>
           <Button onClick={runTestReport}>Run Test Report</Button>
           <Button onClick={runLongTestReport}>Run Long Test Report</Button>
+          <Button onClick={handleVecDBButton}>Test Vector DB</Button>
           </div>
           </SignedIn>
           <SignedOut>

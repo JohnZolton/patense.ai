@@ -17,6 +17,7 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { start } from 'repl';
+import { UTApi } from 'uploadthing/server';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
     typescript: true,
@@ -56,12 +57,31 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
     if (!session?.metadata?.userId) {
       return res.status(200).end()
     }
+    console.log("event type: ", event.type)
 
+    //if (event.type === 'checkout_session.canceled') {}
+    if (event.type === 'payment_intent.canceled') {
+      console.log("payment intent cancelled")
+      console.log(session.metadata)
+      const job = await prisma.oAReport.findFirst({
+        where: {
+          id: session.metadata.txId
+        },
+        include:{
+          files: true
+        }
+      })
+      const utapi = new UTApi()
+      const fileKeys = job?.files.map((file)=>file.key) ?? "none"
+      console.log("file keys: ", fileKeys)
+      await utapi.deleteFiles(fileKeys)      
+      
+    }
     if (event.type === 'checkout.session.completed') {
       console.log("checkout session completed")
       console.log(session.metadata)
     }
-    if (event.type === 'payment_intent.succeeded'&&session.metadata.txId) {
+    if (event.type === 'payment_intent.succeeded'&&session.metadata.txId&&process.env.NODE_ENV==="development"){
       console.log("intent succeeded")
       console.log("Transaction id: ",session.metadata.txId)
       const job = await prisma.oAReport.update({
@@ -80,7 +100,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
         return null
       }
       const spec = await fetch(
-        `https://uploadthing-prod.s3.us-west-2.amazonaws.com/${job.specKey}`
+        `https://utfs.io/f/${job.specKey}`
       )
       const blob = await spec.blob()
       const loader = new PDFLoader(blob, {splitPages: false})
@@ -171,7 +191,7 @@ async function webhookHandler(req: NextApiRequest, res: NextApiResponse) {
       const refDocs: Document[] =[]
       if (job){
         await Promise.all(job.files.map(async (file)=>{
-          const newfile = await fetch(`https://uploadthing-prod.s3.us-west-2.amazonaws.com/${file?.key}`
+          const newfile = await fetch(`https://utfs.io/f/${file?.key}`
           )
           const blob = await newfile.blob()
           const loader = new PDFLoader(blob, {splitPages: false})
