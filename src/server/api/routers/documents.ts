@@ -20,6 +20,12 @@ import { TRPCError } from "@trpc/server";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from 'uuid';
 import { UTApi } from "uploadthing/server";
+import { drawButton } from "pdf-lib";
+import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
+import { Chroma } from 'langchain/vectorstores/chroma'
+import { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { InMemoryStore } from "langchain/storage/in_memory";
+import { ParentDocumentRetriever } from "langchain/retrievers/parent_document";
  
 const utapi = new UTApi();
 
@@ -252,161 +258,147 @@ export const documentRouter = createTRPCRouter({
     return reports
   }),
   
-  AnalyzeDocs: privateProcedure.input(
-    z.object({
-      stripeTxId: z.string(),
-      spec: z.object({
-        fileName: z.string(),
-        fileContent: z.string(),
-      }),
-      references: z.array(
-        z.object({
-        fileName: z.string(),
-        fileContent: z.string(),
-      })),
-    })
-   )
-   .mutation(async ({ ctx, input})=>{
+  testAnalyzeFeatures: privateProcedure.mutation(async ({ ctx })=>{
     console.log(ctx.userId)
-    console.log("spec: ", input.spec.fileName)
-    console.log("references: ", input.references.length)
 
-    const openai = new OpenAI();
-
-    let featureList = ""
-    const chunkSize = 12000
-    const totalChunks=Math.ceil(input.spec.fileContent.length/chunkSize)
-    //console.log(input.spec.fileContent.slice(0,chunkSize))
-
-    //totalChunks = 1 //small testing only
-    //console.log("total chunks: ", totalChunks)
-    //const chunkedText = makeChunks(testText, totalChunks)
-    const chunkedText = makeChunks(input.spec.fileContent, totalChunks)
-    for (let i=0; i<chunkedText.length; i++){
-      const completion = await openai.chat.completions.create({
-        messages: [
-          { role: "system", content: "You are a world-class patent analyst. You are an expert at identifying inventive features in a disclosure." },
-          { role: "user", content: "Identify each and every inventive element in the following disclosure, make sure you identify every possible feature but do not repeat yourself." },
-          { role: "user", content: `Identified features: ${featureList}` },
-          { role: "user", content: `Disclosure: ${chunkedText[i] ?? ""}` }
-        ],
-        model: "gpt-3.5-turbo",
-    });
-      const features = completion.choices[0]?.message.content
-      //console.log("features: ", features)
-      console.log(completion.choices[0])
-      if (features !== null && features !==undefined){
-        featureList = features
-      }
-      console.log("all features: \n", featureList)
-    }
+    const specification = {title: "railway spec", key: "d870d80a-4cc5-49e4-b95a-a8afa78f9e1f-cuaw3m.pdf"}
+    const references = [
+      {title: "WO2018", key: "130c612b-1785-476f-8964-7c4f143eabb7-slu8n7.pdf"},
+      {title: "WO2005", key: "fa04cb84-0404-47b1-b5a2-3b6dfe4d2a75-slu8o5.pdf"}
+    ]
     
-    const featureArray = featureList.split('\n')
-    console.log(featureArray)
+    const testReport = await ctx.prisma.oAReport.create({
+      data:{
+        userID:ctx.userId,
+        specKey: specification.key,
+        title: specification.title,
+        files: {
+          create: references.map((reference)=>({
+            userId: ctx.userId,
+            key: reference.key,
+            title: reference.title,
+          }))
+        },
+      },
+      include: {files:true}
+    })
+    const report = await ctx.prisma.oAReport.findFirst({
+      where: {
+        userID: ctx.userId,
+        id: "c33e6aab-ab07-43d8-8e19-608f1221bae9"
+      },
+      orderBy:[{date:"desc"}],
+      include:{
+        features: true,
+        files: true
+      }
+    })
+    
+    const featureArray = report?.features.map((feature)=>feature.feature) ?? ["none"]
+    /*
+    const spec = await fetch(
+        `https://utfs.io/f/${specification.key}`
+      )
+    const blob = await spec.blob()
+    const loader = new PDFLoader(blob, {splitPages: false})
+    const specText = await loader.load()
+    if (!specText || specText[0]?.pageContent ===undefined){return null}
+    */
 
-    // Pass references to vector DB
+    const refDocs:Document[] = []
+    await Promise.all(testReport.files.map(async (file)=>{
+      const newfile = await fetch(`https://utfs.io/f/${file?.key}`
+      )
+      const blob = await newfile.blob()
+      const loader = new PDFLoader(blob, {splitPages: false})
+      const refText = await loader.load()
+      //const doc = new Document({pageContent:refText[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": session.metadata?.userId ?? "none"}})
+      const doc = new Document({pageContent:refText[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": ctx.userId ?? "none"}})
+      refDocs.push(doc)        
+    }))
+    
+    const openai = new OpenAI();
+    
+    // TEST VECTOR DB
     const embeddings = new OpenAIEmbeddings({
       openAIApiKey: process.env.OPEN_API_KEY,
     })
-
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 500,
-      chunkOverlap: 100,
+    const vectorstore = new MemoryVectorStore(embeddings)
+    const docstore = new InMemoryStore()
+    const retriever = new ParentDocumentRetriever({
+      vectorstore,
+      docstore,
+      parentSplitter: new RecursiveCharacterTextSplitter({
+        chunkOverlap:0,
+        chunkSize:600,
+      }),
+      childSplitter: new RecursiveCharacterTextSplitter({
+        chunkOverlap:0,
+        chunkSize:75,
+      }),
+      childK: 20,
+      parentK: 5
     })
     
-    const loadedDocuments = referencesToTextLoader(input.references, ctx.userId)
-    
-    const splitDocuments = await textSplitter.splitDocuments(loadedDocuments)
+    await retriever.addDocuments(refDocs)
 
-    const pinecone = new Pinecone({
-      environment: "us-east-1-aws",      
-      apiKey: process.env.PINECONE_API_KEY!,      
-    })
-
-    const pineconeIndex = pinecone.Index('patense')
-    
-    const vectorStore = await PineconeStore.fromDocuments(
-      splitDocuments,
-      embeddings,
-      {
-        pineconeIndex,
-        namespace: ctx.userId,
-        textKey: ctx.userId
-      },
-    )
-    
-    
     // retrieval QA over inventive elements    
     const model = new ChatOpenAI({modelName:"gpt-3.5-turbo"})
     const template = ``
     const chain = RetrievalQAChain.fromLLM(
       model, 
-      vectorStore.asRetriever(),
+      retriever,
       { returnSourceDocuments: true, }
     )
     
-    const analysisArray:FeatureItem[] = []
-
-    interface Document {
-      pageContent: string;
-      metadata: {
-        title: string;
-        userId: string;
-        loc: {
-          // You might need to define the structure of loc object
-          // Assuming it has some properties like lat and long
-          lat: number;
-          long: number;
-        };
-        // You can add more properties if necessary
-      };
-    }
-    interface Responsetype {
-      text: string,
-      sourceDocuments: Document[],
-    }
-
-    for (let i=0; i<featureArray.length; i++){
-      const currentFeature = featureArray[i]?.replace(/^\d+\.\s*/, ''); // Remove leading numbers
+    const analysisArray: FeatureItem[]= Array.from({length: featureArray.length},()=>({
+      feature:"",
+      analysis: "",
+      source:""
+    }))
+    const analysisPromises = featureArray.map(async (feature,i)=>{
+      const currentFeature = feature
       const fullFeature = featureArray[i]
 
-      if (currentFeature!==undefined &&fullFeature !== undefined){
-        if (/^\d+/.test(fullFeature)){
+      if (currentFeature!==undefined &&fullFeature !== undefined && i===2){
+        if (true){
           const response = await chain.call({
-            query: `Do the references disclose: ${currentFeature}?`
+            query: `Do the references disclose or suggest: ${currentFeature}? explain your reasoning`
           }) as { sourceDocuments: Document[], text: string}
           console.log(response)
           
           const sourceDocuments: Document[]=response.sourceDocuments
-          const uniqueTitles = new Set(sourceDocuments.map(doc=>doc.metadata.title))
+          const uniqueTitles = new Set(sourceDocuments.map(doc=>doc.metadata.title as string))
           const concatenatedTitles = Array.from(uniqueTitles).join(", ")
           const newItem: FeatureItem = {feature: fullFeature, analysis: String(response.text), source:concatenatedTitles}
-          analysisArray.push(newItem)
+          analysisArray[i]=newItem
         }
       }
-    }
-    await ctx.prisma.oAReport.update({
-      where: {stripeTxId: input.stripeTxId},
+
+    })
+    
+    await Promise.all(analysisPromises)
+
+    const finalReport = await ctx.prisma.oAReport.update({
+      where: {id: testReport.id},
       data:{
+        completed:true,
+        paid:true,
         features: {
-          create: analysisArray.map((feature)=>({
-            feature: feature.feature,
-            analysis: feature.analysis,
-            source: feature.source
-          }))
+          create: analysisArray
+            .filter(item=>item.analysis!=="")
+            .map((item)=>({
+              feature: item.feature,
+              analysis: item.analysis,
+              source: item.source
+            }))
         }
       }
     })
-
-    await pineconeIndex.namespace(ctx.userId).deleteAll()
-    
-    console.log("COMPLETED")
-    
-    return analysisArray
+    return finalReport
    })
 });
 
-const testText = `Described herein are lifting devices. The lifting device includes a tube. The tube has a first slot and a second slot. The lifting device also includes an insert having a first insert projection connected to a second insert projection by a central portion. The first insert projection extends through the first slot and the second insert projection extends through the second slot. The lifting device also includes a first plate and a second plate. The first plate and the second plate are each connected to the central portion of the insert. The tube has a longitudinal axis. A plurality of tube apertures are arranged in line with the longitudinal axis. The tube further comprises a first cap at a first end of the tube and a second cap at a second end of the tube. The tube has a circumference, and the first insert projection extends out of the tube at 0 degrees and the second insert projection extends out of the tube at 180 degrees. A length of the second slot is greater than a length of the first slot. The first insert projection and the second insert projection are on a same plane. The first insert projection, the second insert projection, and the central portion of the insert together are an integral structure. A width of the first insert projection, a width of the central portion of the insert, and a width of the second insert projection are substantially the same. The first insert projection includes an aperture, the central portion of the insert includes a plurality of apertures, and the first foot and the second foot each include an aperture. The second insert projection may further include a first foot and a second foot. The first plate and the second plate are each connected to the tube. The first plate and the second plate may each extend from a surface of the second insert projection to an internal surface of the tube. The first plate and the second plate may be welded to the tube and welded to at least a portion of the insert. Each of the first plate and the second plate are substantially rectangular with at least one angled side, wherein the at least one angled side of the first plate and the at least one angled side of the second plate are each connected to the central portion of the insert. Each of the first plate and the second plate are thinner than the second insert projection. Each of the tube, the insert, the first plate, and the second plate include a non-sparking metal. The non-sparking metal may be aluminum. The lifting device may be configured to support a weight of at least 60,000 pounds. The lifting device may be configured to support a working load of at least 15,000 pounds.`
 
 function makeChunks(text:string, length:number){
   const size =Math.ceil(text.length / length)
