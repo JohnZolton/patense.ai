@@ -334,7 +334,7 @@ export const documentRouter = createTRPCRouter({
       }),
       childSplitter: new RecursiveCharacterTextSplitter({
         chunkOverlap:0,
-        chunkSize:75,
+        chunkSize:150,
       }),
       childK: 20,
       parentK: 5

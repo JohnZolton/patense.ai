@@ -18,6 +18,7 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { start } from 'repl';
 import { UTApi } from 'uploadthing/server';
+import { Chroma } from 'langchain/vectorstores/chroma'
 
 //const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
     //typescript: true,
