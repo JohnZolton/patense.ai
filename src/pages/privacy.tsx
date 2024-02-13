@@ -39,7 +39,7 @@ const Home: NextPage = () => {
   
     function copyEmailToClipboard(){
         navigator.clipboard
-        .writeText("support@patense.ai")
+        .writeText("john@patense.ai")
         .then(() => toast({
           title:"Email Copied to Clipboard",
           content:"support@patense.ai",

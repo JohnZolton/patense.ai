@@ -13,7 +13,7 @@ import { PineconeStore } from 'langchain/vectorstores/pinecone'
 import { TextLoader } from 'langchain/document_loaders/fs/text'
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "langchain/document";
-import { RetrievalQAChain } from "langchain/chains";
+import { ConstitutionalPrinciple, RetrievalQAChain } from "langchain/chains";
 import { ChatOpenAI } from "langchain/chat_models/openai";
 import { TRPCClientError } from "@trpc/client";
 import { TRPCError } from "@trpc/server";
@@ -26,6 +26,9 @@ import { Chroma } from 'langchain/vectorstores/chroma'
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { InMemoryStore } from "langchain/storage/in_memory";
 import { ParentDocumentRetriever } from "langchain/retrievers/parent_document";
+import { CheerioWebBaseLoader } from "langchain/document_loaders/web/cheerio"
+import { PlaywrightWebBaseLoader } from "langchain/document_loaders/web/playwright";
+import { first } from "cheerio/lib/api/traversing";
  
 const utapi = new UTApi();
 
@@ -258,6 +261,229 @@ export const documentRouter = createTRPCRouter({
     return reports
   }),
   
+  testPatentBot: privateProcedure.mutation(async ({ ctx })=>{
+    const officeActionInfo = {
+      title: 'office_action.pdf',
+      key: 'eb953b0e-6671-43b7-857f-b95b2f0033bd-qpa31j.pdf'
+    }
+    const specificationDoc = {title: "railway spec", key: "d870d80a-4cc5-49e4-b95a-a8afa78f9e1f-cuaw3m.pdf"}
+    const referencesDoc = [
+      {title: "WO2018050143", key: "78a7c410-0549-4ddb-96f0-b28170757e99-iv93u5.pdf", author:"Coutinho", url: "https://patents.google.com/patent/WO2018050143A2/en"},
+      {title: "WO2005047819", key: "fa04cb84-0404-47b1-b5a2-3b6dfe4d2a75-slu8o5.pdf", author: "Hulin", url: "https://patents.google.com/patent/WO2005047819A1/en?oq=WO2005047819A"}
+    ]
+    
+
+
+    const officeActionDoc = await fetch(`https://utfs.io/f/${officeActionInfo.key}`)
+    const oaBlob = await officeActionDoc.blob()
+    const oaLoader = new PDFLoader(oaBlob, {splitPages: false})
+    const oaText = await oaLoader.load()
+    const officeAction = new Document({pageContent:oaText[0]?.pageContent ?? "", metadata:{"title": officeActionInfo.title, "userId": ctx.userId ?? "none"}})
+    //console.log(officeAction.pageContent)
+    
+    const pattern102 = /Claim Rejections - 35 USC § 102[\s\S]*?(?=Claim Rejections - 35 USC § 103|$)/g;
+    const pattern103 = /Claim Rejections - 35 USC § 103[\s\S]*?(?=Conclusion|Claim Rejections|$)/g;
+
+    function extractClaimRejections(text: string, pattern: RegExp): string[] {
+      const claimRejections: string[] = [];
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(text)) !== null) {
+          claimRejections.push(match[0]);
+      }
+      return claimRejections;
+    }
+
+
+    
+    const rejections102: string[] = extractClaimRejections(officeAction.pageContent, pattern102)
+    const rejections103: string[] = extractClaimRejections(officeAction.pageContent, pattern103)
+    //console.log(rejections102)
+    //console.log(rejections103)
+    
+    function splitIntoClaimParagraphs(rejectionSections: string[]): string[][] {
+      const claimParagraphs: string[][] = [];
+      const pattern = /In regards to claim \d+([\s\S]*?)(?=(?:In regards to claim \d+)|$)/g;
+      
+      for (const section of rejectionSections) {
+        const matches: string[] = [];
+        let match: RegExpExecArray | null;
+        while ((match = pattern.exec(section)) !== null) {
+            matches.push(match[0].trim());
+        }
+        claimParagraphs.push(matches);
+      }
+      
+      return claimParagraphs;
+    }
+    
+    const claimSections102 = splitIntoClaimParagraphs(rejections102)
+    const claimSections103 = splitIntoClaimParagraphs(rejections103)
+    /*
+    console.log("102 paragraphs: ")
+    console.log(claimSections102[0])
+    console.log("103 paragraphs: ")
+    console.log(claimSections103[0])
+    */
+    
+    
+    // now need to link ref docs to OA labels
+    // think have GPT label them? give first paragraph or so
+    // have GPT extract citations from claim paragraphs?
+    // make this persistent somehow so i dont have to burn OApi tokens
+    
+    const openai = new OpenAI()
+    const completion = await openai.chat.completions.create({
+      messages:[
+        { role: "user", content: "identify the reference name and ONLY the paragraph numbers. say NOTHING else. If you say anything OTHER than a paragraph or line number, a cute kitten will be horribly killed. ONLY paragraph numbers and line numbers" },
+        { role: "user", content: `${claimSections102[0]?.[0] ?? ""}` },
+      ],
+      model: "gpt-3.5-turbo"
+    })
+
+
+    const refDocs:Document[] = []
+    
+    await Promise.all(referencesDoc.map(async (file)=>{
+      const doc = await fetch(`https://utfs.io/f/${file.key}`)
+      const dobBlob = await doc.blob()
+      const docloader = new PDFLoader(dobBlob, {splitPages: false})
+      const loadeddoc = await docloader.load()
+      const newDoc = new Document({pageContent:loadeddoc[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": ctx.userId ?? "none", author: file.author}})
+      refDocs.push(newDoc)
+    }))
+    
+    /*
+    console.log(refDocs[0]?.pageContent)
+    const testCompletion = await openai.chat.completions.create({
+      messages:[
+        { role: "user", content: "break this up into paragraphs clearly, so i can parse it programmatically on [newline]" },
+        { role: "user", content: `${refDocs[0]?.pageContent}` },
+      ],
+      model: "gpt-3.5-turbo",
+      temperature:0
+    })
+    const response = testCompletion.choices[0]?.message.content ?? "none"
+    const parsedResponse = response.split('\n\n')
+    console.log(parsedResponse)
+    */
+
+    /*
+    const loader = new CheerioWebBaseLoader(referencesDoc[0]?.url ?? "none", {
+      selector: "span:not(.google-src-text)"
+    })
+    const loadedDoc = await loader.load()
+    
+    const doc = new Document({pageContent:loadedDoc[0]?.pageContent ?? "none", metadata:{"title": referencesDoc[0]?.title, "userId": ctx.userId ?? "none", author: referencesDoc[0]?.author}})
+    refDocs.push(doc)
+    */
+    
+    console.log(`${claimSections102[0]?.[0] ?? ""}`)
+    const citeLocation = completion.choices[0]?.message
+    console.log(citeLocation?.content)
+    const refName = claimSections102[0]?.[0]?.match(/\b(\w+)\s+discloses\b/) ?? "none"
+    console.log(refName[1])
+    
+    //const paragraphCites = citation?.content?.match(/\[\d{4}\]/g);
+    
+    const lines = citeLocation?.content?.split('\n')
+    const citations = lines?.map(line=>{
+      const match = line.match(/\d+/);
+      return match ? match[0] : "none";
+    }).filter(Boolean)
+
+    console.log(citations)
+
+      interface paragraphs {
+        token: string,
+        number: string,
+        start: number,
+        end: number
+      }
+    function mapCitedText(references: Document[], citation: string[]):paragraphs[]|null{
+      if (citation === undefined ){return null}
+      
+      // ONLY DOES [001] style paragraphs right now
+      const reference = references.find(ref => ref.metadata.author === refName[1])
+      if (!reference){return null}
+      
+      const paraPattern = /\[(.*?)]/gi;
+      
+      const matches = reference.pageContent.match(paraPattern)
+      console.log("matches: " ,matches)
+      console.log(matches?.[0].length)
+      
+      const matchedIndex:paragraphs[] = []
+      if (matches){
+        for (let i=0; i<matches?.length; i++){
+          if (matches[i] !== undefined){
+            const index = reference.pageContent.indexOf(matches[i] ?? "sadfdsa")
+            let next = reference.pageContent.indexOf(matches[i+1] ?? "sadfdsa")
+            if (next === -1){ next = reference.pageContent.length}
+            matchedIndex.push({
+              token: matches[i]!,
+              start: index,
+              end: next,
+              number: matches[i]!.slice(1,-1)
+            })                    
+          }
+        }
+      }
+      return matchedIndex
+    }
+    
+    const results: string[] = []
+    console.log("citations: ", citations)
+    const cleanedCitations = citations?.map(numberString => parseInt(numberString).toString());
+    console.log("cleaned cites: ", cleanedCitations)
+    const paragraphIndexes = mapCitedText(refDocs, cleanedCitations ?? ["none"])
+
+    console.log(paragraphIndexes)
+    
+    console.log(cleanedCitations![0])
+    
+    function findNearestParagraphs(cite:string, paragraphIndexes: paragraphs[]){
+      //TODO
+      
+      const foundParagraph: paragraphs = {
+        token: cite,
+        number: cite,
+        start: 0,
+        end: 0
+      }
+      let result = paragraphIndexes.find((paragraph)=> paragraph.number === cite)
+
+      if (result === undefined){
+        let lowNumber = parseInt(cite)
+        let highNumber = parseInt(cite)
+        while (result === undefined){
+          lowNumber -=1
+          result = paragraphIndexes.find((paragraph)=> paragraph.number === lowNumber.toString())
+          foundParagraph.start = result?.start ?? 0
+        }
+        result = undefined
+        while (result === undefined){
+          highNumber +=1
+          result = paragraphIndexes.find((paragraph)=> paragraph.number === highNumber.toString())
+          foundParagraph.end = result?.end ?? 0
+        }
+      }
+      return foundParagraph
+    }
+    const firstResult = findNearestParagraphs(cleanedCitations![0]!, paragraphIndexes!)
+
+    console.log(firstResult)
+    
+
+
+    return {200: "nice"}
+    
+
+    
+    
+    
+   }),
+   
+   
   testAnalyzeFeatures: privateProcedure.mutation(async ({ ctx })=>{
     console.log(ctx.userId)
 
@@ -334,13 +560,16 @@ export const documentRouter = createTRPCRouter({
       }),
       childSplitter: new RecursiveCharacterTextSplitter({
         chunkOverlap:0,
-        chunkSize:150,
+        chunkSize:200,
       }),
-      childK: 20,
-      parentK: 5
+      childK: 30,
+      parentK: 8,
     })
+
     
     await retriever.addDocuments(refDocs)
+    //console.log(retriever.docstore)
+    console.log(await retriever.getRelevantDocuments("a weed control unit mounted at a first position of the vehicle"))
 
     // retrieval QA over inventive elements    
     const model = new ChatOpenAI({modelName:"gpt-3.5-turbo"})

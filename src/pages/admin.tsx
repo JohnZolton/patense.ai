@@ -66,8 +66,12 @@ const AdminPanel: NextPage = () => {
       ]
     })
   }
+  const { mutate: testBotButton } = api.DocumentRouter.testPatentBot.useMutation()
   const { mutate: testVectorDB } = api.DocumentRouter.testAnalyzeFeatures.useMutation(
   )
+  function handleBotButton(){
+    testBotButton()
+  }
   function handleVecDBButton(){
     testVectorDB()
   }
@@ -98,6 +102,7 @@ const AdminPanel: NextPage = () => {
           <Button onClick={runTestReport}>Run Test Report</Button>
           <Button onClick={runLongTestReport}>Run Long Test Report</Button>
           <Button onClick={handleVecDBButton}>Test Vector DB</Button>
+          <Button onClick={handleBotButton}>Test Bot</Button>
           </div>
           </SignedIn>
           <SignedOut>
