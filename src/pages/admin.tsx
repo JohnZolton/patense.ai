@@ -98,10 +98,10 @@ const AdminPanel: NextPage = () => {
         <Toaster/>
           <SignedIn>
           <div className="flex flex-col items-center mt-10 gap-y-3">
-          <Button onClick={handleButtonClick}>Delete All Files</Button>
-          <Button onClick={runTestReport}>Run Test Report</Button>
-          <Button onClick={runLongTestReport}>Run Long Test Report</Button>
-          <Button onClick={handleVecDBButton}>Test Vector DB</Button>
+          <Button disabled onClick={handleButtonClick}>Delete All Files</Button>
+          <Button disabled onClick={runTestReport}>Run Test Report</Button>
+          <Button disabled onClick={runLongTestReport}>Run Long Test Report</Button>
+          <Button disabled onClick={handleVecDBButton}>Test Vector DB</Button>
           <Button onClick={handleBotButton}>Test Bot</Button>
           </div>
           </SignedIn>

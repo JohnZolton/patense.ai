@@ -273,6 +273,15 @@ export const documentRouter = createTRPCRouter({
     ]
     
 
+    const openai = new OpenAI()
+    
+    interface analysisObject {
+      element?: string,
+      reasoning: string,
+      citations: string[],
+      reference?: string,
+      context?: string[],
+    }
 
     const officeActionDoc = await fetch(`https://utfs.io/f/${officeActionInfo.key}`)
     const oaBlob = await officeActionDoc.blob()
@@ -293,15 +302,12 @@ export const documentRouter = createTRPCRouter({
       return claimRejections;
     }
 
-
-    
     const rejections102: string[] = extractClaimRejections(officeAction.pageContent, pattern102)
     const rejections103: string[] = extractClaimRejections(officeAction.pageContent, pattern103)
-    //console.log(rejections102)
     //console.log(rejections103)
     
-    function splitIntoClaimParagraphs(rejectionSections: string[]): string[][] {
-      const claimParagraphs: string[][] = [];
+    function splitIntoClaimParagraphs(rejectionSections: string[]): string[] {
+      const claimParagraphs: string[] = [];
       const pattern = /In regards to claim \d+([\s\S]*?)(?=(?:In regards to claim \d+)|$)/g;
       
       for (const section of rejectionSections) {
@@ -310,7 +316,7 @@ export const documentRouter = createTRPCRouter({
         while ((match = pattern.exec(section)) !== null) {
             matches.push(match[0].trim());
         }
-        claimParagraphs.push(matches);
+        claimParagraphs.push(...matches);
       }
       
       return claimParagraphs;
@@ -318,27 +324,53 @@ export const documentRouter = createTRPCRouter({
     
     const claimSections102 = splitIntoClaimParagraphs(rejections102)
     const claimSections103 = splitIntoClaimParagraphs(rejections103)
-    /*
     console.log("102 paragraphs: ")
-    console.log(claimSections102[0])
-    console.log("103 paragraphs: ")
-    console.log(claimSections103[0])
-    */
-    
-    
-    // now need to link ref docs to OA labels
-    // think have GPT label them? give first paragraph or so
-    // have GPT extract citations from claim paragraphs?
-    // make this persistent somehow so i dont have to burn OApi tokens
-    
-    const openai = new OpenAI()
-    const completion = await openai.chat.completions.create({
+    console.log(claimSections102)
+
+    const testCompletion = await openai.chat.completions.create({
       messages:[
-        { role: "user", content: "identify the reference name and ONLY the paragraph numbers. say NOTHING else. If you say anything OTHER than a paragraph or line number, a cute kitten will be horribly killed. ONLY paragraph numbers and line numbers" },
-        { role: "user", content: `${claimSections102[0]?.[0] ?? ""}` },
+        { role: "system", content: "You are a phenomenal patent attorney. You are excellent at identifying elements of a claim in an office action." },
+        { role: "user", content: "separate this into elements with their associated in line citation. split elements on inline ciatations. keep everything between two citations together:" },
+        { role: "user", content: `${claimSections102[0]!}` },
       ],
-      model: "gpt-3.5-turbo"
+      model: "gpt-3.5-turbo",
+      temperature:0
     })
+    const response = testCompletion.choices[0]?.message.content ?? "none"
+    //const parsedResponse = response.split('\n\n')
+    console.log(`${claimSections102[0] ?? ""}`)
+    console.log(response)
+
+    function splitElementsFromRejection(argument: string):string[]{
+      const regex = /(?:Element \d+:|\b\d+\. )/g; // Match either "Element [number]:" or "[number]. " with a word boundary
+      const parts = argument.split(regex)
+      const filteredParts = parts.filter(part=>part!=='')
+      return filteredParts
+    }
+    
+    const splitElements = splitElementsFromRejection(response)
+    console.log("split: ", splitElements)
+    
+    function extractNumbersFromBrackets(inputString: string): string[] {
+      const regex = /\[(\d+)\]/g;
+      const matches: string[] = [];
+      let match;
+      while ((match = regex.exec(inputString)) !== null) {
+          matches.push(match[1] ?? "");
+      }
+      return matches;
+    }
+    function extractReferenceName(oaSection: string){
+      const result = oaSection.match(/\b(\w+)\s+discloses\b/) ?? "none"
+      return result[1]
+    }
+    const localCitations = extractNumbersFromBrackets(splitElements?.[0] ?? "")
+    const analysisObject:analysisObject = {
+      reasoning: splitElements?.[0] ?? "error extracting citation",
+      citations: localCitations,
+      reference: extractReferenceName(claimSections102?.[0] ?? "none")
+    }
+    console.log(analysisObject)
 
 
     const refDocs:Document[] = []
@@ -352,58 +384,16 @@ export const documentRouter = createTRPCRouter({
       refDocs.push(newDoc)
     }))
     
-    /*
-    console.log(refDocs[0]?.pageContent)
-    const testCompletion = await openai.chat.completions.create({
-      messages:[
-        { role: "user", content: "break this up into paragraphs clearly, so i can parse it programmatically on [newline]" },
-        { role: "user", content: `${refDocs[0]?.pageContent}` },
-      ],
-      model: "gpt-3.5-turbo",
-      temperature:0
-    })
-    const response = testCompletion.choices[0]?.message.content ?? "none"
-    const parsedResponse = response.split('\n\n')
-    console.log(parsedResponse)
-    */
-
-    /*
-    const loader = new CheerioWebBaseLoader(referencesDoc[0]?.url ?? "none", {
-      selector: "span:not(.google-src-text)"
-    })
-    const loadedDoc = await loader.load()
-    
-    const doc = new Document({pageContent:loadedDoc[0]?.pageContent ?? "none", metadata:{"title": referencesDoc[0]?.title, "userId": ctx.userId ?? "none", author: referencesDoc[0]?.author}})
-    refDocs.push(doc)
-    */
-    
-    console.log(`${claimSections102[0]?.[0] ?? ""}`)
-    const citeLocation = completion.choices[0]?.message
-    console.log(citeLocation?.content)
-    const refName = claimSections102[0]?.[0]?.match(/\b(\w+)\s+discloses\b/) ?? "none"
-    console.log(refName[1])
-    
-    //const paragraphCites = citation?.content?.match(/\[\d{4}\]/g);
-    
-    const lines = citeLocation?.content?.split('\n')
-    const citations = lines?.map(line=>{
-      const match = line.match(/\d+/);
-      return match ? match[0] : "none";
-    }).filter(Boolean)
-
-    console.log(citations)
-
-      interface paragraphs {
+    interface paragraphs {
         token: string,
         number: string,
         start: number,
         end: number
-      }
-    function mapCitedText(references: Document[], citation: string[]):paragraphs[]|null{
-      if (citation === undefined ){return null}
-      
+    }
+
+    function mapCitedText(references: Document[], refName: string):paragraphs[]|null{
       // ONLY DOES [001] style paragraphs right now
-      const reference = references.find(ref => ref.metadata.author === refName[1])
+      const reference = references.find(ref => ref.metadata.author === refName)
       if (!reference){return null}
       
       const paraPattern = /\[(.*?)]/gi;
@@ -427,23 +417,25 @@ export const documentRouter = createTRPCRouter({
             })                    
           }
         }
+        matchedIndex.push({
+          token: "end",
+          start: matchedIndex[matchedIndex.length-1]?.end ?? 0,
+          end: reference.pageContent.length-1,
+          number: "9999"
+        })                    
       }
       return matchedIndex
     }
     
-    const results: string[] = []
-    console.log("citations: ", citations)
-    const cleanedCitations = citations?.map(numberString => parseInt(numberString).toString());
-    console.log("cleaned cites: ", cleanedCitations)
-    const paragraphIndexes = mapCitedText(refDocs, cleanedCitations ?? ["none"])
+    const paragraphIndexes = mapCitedText(refDocs, analysisObject.reference ?? "error")
 
     console.log(paragraphIndexes)
     
-    console.log(cleanedCitations![0])
+    const upperLimit = refDocs[0]?.pageContent.length ?? 1000000
+
+    console.log("upper: ", upperLimit)
     
     function findNearestParagraphs(cite:string, paragraphIndexes: paragraphs[]){
-      //TODO
-      
       const foundParagraph: paragraphs = {
         token: cite,
         number: cite,
@@ -455,13 +447,13 @@ export const documentRouter = createTRPCRouter({
       if (result === undefined){
         let lowNumber = parseInt(cite)
         let highNumber = parseInt(cite)
-        while (result === undefined){
+        while (result === undefined && lowNumber > 0){
           lowNumber -=1
           result = paragraphIndexes.find((paragraph)=> paragraph.number === lowNumber.toString())
           foundParagraph.start = result?.start ?? 0
         }
         result = undefined
-        while (result === undefined){
+        while (result === undefined && (highNumber < upperLimit) ){
           highNumber +=1
           result = paragraphIndexes.find((paragraph)=> paragraph.number === highNumber.toString())
           foundParagraph.end = result?.end ?? 0
@@ -469,9 +461,18 @@ export const documentRouter = createTRPCRouter({
       }
       return foundParagraph
     }
-    const firstResult = findNearestParagraphs(cleanedCitations![0]!, paragraphIndexes!)
-
-    console.log(firstResult)
+    
+    const relevantParagraphs = analysisObject.citations.map((citation)=>{
+      const result = findNearestParagraphs(citation, paragraphIndexes!)
+      const text = refDocs[0]?.pageContent.slice(result.start, result.end) ?? ""
+      return text
+    })
+    
+    
+    analysisObject.context = relevantParagraphs
+    console.log(claimSections102[0]?.[0])
+    console.log(analysisObject)
+    
     
 
 
