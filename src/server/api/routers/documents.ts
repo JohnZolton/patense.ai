@@ -281,6 +281,12 @@ export const documentRouter = createTRPCRouter({
       citations: string[],
       reference?: string,
       context?: string[],
+      conclusion?: string,
+    }
+    interface oaObject {
+        claim: string,
+        rejection: string,
+        analysis: analysisObject[]
     }
 
     const officeActionDoc = await fetch(`https://utfs.io/f/${officeActionInfo.key}`)
@@ -304,8 +310,17 @@ export const documentRouter = createTRPCRouter({
 
     const rejections102: string[] = extractClaimRejections(officeAction.pageContent, pattern102)
     const rejections103: string[] = extractClaimRejections(officeAction.pageContent, pattern103)
-    //console.log(rejections103)
     
+    const refDocs:Document[] = []
+    
+    await Promise.all(referencesDoc.map(async (file)=>{
+      const doc = await fetch(`https://utfs.io/f/${file.key}`)
+      const dobBlob = await doc.blob()
+      const docloader = new PDFLoader(dobBlob, {splitPages: false})
+      const loadeddoc = await docloader.load()
+      const newDoc = new Document({pageContent:loadeddoc[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": ctx.userId ?? "none", author: file.author}})
+      refDocs.push(newDoc)
+    }))
     function splitIntoClaimParagraphs(rejectionSections: string[]): string[] {
       const claimParagraphs: string[] = [];
       const pattern = /In regards to claim \d+([\s\S]*?)(?=(?:In regards to claim \d+)|$)/g;
@@ -322,34 +337,64 @@ export const documentRouter = createTRPCRouter({
       return claimParagraphs;
     }
     
+    const paragraphIndexes = refDocs.map((refDoc)=>({
+      author: refDoc.metadata.author,
+      paragraphs: mapCitedText(refDoc)}))
+
+    console.log(paragraphIndexes)
+    
+    const upperLimit = refDocs[0]?.pageContent.length ?? 1000000
+
+    console.log("upper: ", upperLimit)
+    
     const claimSections102 = splitIntoClaimParagraphs(rejections102)
     const claimSections103 = splitIntoClaimParagraphs(rejections103)
     console.log("102 paragraphs: ")
     console.log(claimSections102)
 
-    const testCompletion = await openai.chat.completions.create({
-      messages:[
-        { role: "system", content: "You are a phenomenal patent attorney. You are excellent at identifying elements of a claim in an office action." },
-        { role: "user", content: "separate this into elements with their associated in line citation. split elements on inline ciatations. keep everything between two citations together:" },
-        { role: "user", content: `${claimSections102[0]!}` },
-      ],
-      model: "gpt-3.5-turbo",
-      temperature:0
-    })
-    const response = testCompletion.choices[0]?.message.content ?? "none"
-    //const parsedResponse = response.split('\n\n')
-    console.log(`${claimSections102[0] ?? ""}`)
-    console.log(response)
-
-    function splitElementsFromRejection(argument: string):string[]{
+    async function splitElementsFromRejection(argument: string){
+      const testCompletion = await openai.chat.completions.create({
+        messages:[
+          { role: "system", content: "You are a phenomenal patent attorney. You are excellent at identifying elements of a claim in an office action." },
+          { role: "user", content: "separate this into elements with their associated in line citation. split elements on inline ciatations. keep everything between two citations together:" },
+          { role: "user", content: `${argument}` },
+        ],
+        model: "gpt-3.5-turbo",
+        temperature:0
+      })
+      const response = testCompletion.choices[0]?.message.content ?? "none"
+      //const parsedResponse = response.split('\n\n')
+      console.log(response)
       const regex = /(?:Element \d+:|\b\d+\. )/g; // Match either "Element [number]:" or "[number]. " with a word boundary
-      const parts = argument.split(regex)
+      const parts = response.split(regex)
       const filteredParts = parts.filter(part=>part!=='')
       return filteredParts
     }
     
-    const splitElements = splitElementsFromRejection(response)
-    console.log("split: ", splitElements)
+    async function processAllClaims(claims: string[]){
+      const splitElementsPromises = claims.map(async (claim)=>{
+        const reasoning = await splitElementsFromRejection(claim)
+        const title = extractReferenceName(claim) ?? "None"
+        const analyses = reasoning.map((element)=>{
+          const citeLocations = extractNumbersFromBrackets(element);
+          const context = getRelevantParagraphs(title, citeLocations);
+          const result = {
+            reasoning: element,
+            citations: citeLocations,
+            context: context,
+            reference: title,
+          }
+          return result
+          
+        })
+        return analyses
+      })
+      return Promise.all(splitElementsPromises)
+    }
+    const updatedClaims = await processAllClaims(claimSections102);
+    console.log("updated claims: ", updatedClaims)
+    console.log("claim 0: ", updatedClaims[0])
+    
     
     function extractNumbersFromBrackets(inputString: string): string[] {
       const regex = /\[(\d+)\]/g;
@@ -361,28 +406,11 @@ export const documentRouter = createTRPCRouter({
       return matches;
     }
     function extractReferenceName(oaSection: string){
+      console.log("Extracting name: ", oaSection)
       const result = oaSection.match(/\b(\w+)\s+discloses\b/) ?? "none"
       return result[1]
     }
-    const localCitations = extractNumbersFromBrackets(splitElements?.[0] ?? "")
-    const analysisObject:analysisObject = {
-      reasoning: splitElements?.[0] ?? "error extracting citation",
-      citations: localCitations,
-      reference: extractReferenceName(claimSections102?.[0] ?? "none")
-    }
-    console.log(analysisObject)
 
-
-    const refDocs:Document[] = []
-    
-    await Promise.all(referencesDoc.map(async (file)=>{
-      const doc = await fetch(`https://utfs.io/f/${file.key}`)
-      const dobBlob = await doc.blob()
-      const docloader = new PDFLoader(dobBlob, {splitPages: false})
-      const loadeddoc = await docloader.load()
-      const newDoc = new Document({pageContent:loadeddoc[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": ctx.userId ?? "none", author: file.author}})
-      refDocs.push(newDoc)
-    }))
     
     interface paragraphs {
         token: string,
@@ -391,13 +419,8 @@ export const documentRouter = createTRPCRouter({
         end: number
     }
 
-    function mapCitedText(references: Document[], refName: string):paragraphs[]|null{
-      // ONLY DOES [001] style paragraphs right now
-      const reference = references.find(ref => ref.metadata.author === refName)
-      if (!reference){return null}
-      
+    function mapCitedText(reference: Document):paragraphs[]|null{
       const paraPattern = /\[(.*?)]/gi;
-      
       const matches = reference.pageContent.match(paraPattern)
       console.log("matches: " ,matches)
       console.log(matches?.[0].length)
@@ -427,15 +450,8 @@ export const documentRouter = createTRPCRouter({
       return matchedIndex
     }
     
-    const paragraphIndexes = mapCitedText(refDocs, analysisObject.reference ?? "error")
-
-    console.log(paragraphIndexes)
-    
-    const upperLimit = refDocs[0]?.pageContent.length ?? 1000000
-
-    console.log("upper: ", upperLimit)
-    
-    function findNearestParagraphs(cite:string, paragraphIndexes: paragraphs[]){
+    function findNearestParagraphs(cite:string, paragraphIndexes: paragraphs[] | undefined):paragraphs|undefined{
+      if (paragraphIndexes === undefined){return}
       const foundParagraph: paragraphs = {
         token: cite,
         number: cite,
@@ -458,15 +474,30 @@ export const documentRouter = createTRPCRouter({
           result = paragraphIndexes.find((paragraph)=> paragraph.number === highNumber.toString())
           foundParagraph.end = result?.end ?? 0
         }
+      } else {
+        return result
       }
       return foundParagraph
     }
+    function getRelevantParagraphs(title: string, cites: string[]){
+      const reference = paragraphIndexes.find((paragraph)=>paragraph.author===title)
+      if (reference===undefined || reference.paragraphs===null){return }
+      const relevantParagraphs = cites.map((cite)=>{
+        return findNearestParagraphs(cite, reference!.paragraphs!)
+      })
+      console.log("relevant Paragraphs: ",relevantParagraphs[0])
+      // get slices of references here, pack into string[]
+      const realRef = refDocs.find((doc)=>doc.metadata.author === title)
+      const portions = relevantParagraphs.map((cite)=>{
+        if (cite===undefined || realRef === undefined){return []}
+        return realRef.pageContent.slice(cite.start, cite.end)
+      })
+      return portions
+    }
     
-    const relevantParagraphs = analysisObject.citations.map((citation)=>{
-      const result = findNearestParagraphs(citation, paragraphIndexes!)
-      const text = refDocs[0]?.pageContent.slice(result.start, result.end) ?? ""
-      return text
-    })
+    return {200:":="}
+      //const result = findNearestParagraphs(citation, paragraphIndexes!)
+      //const text = refDocs[0]?.pageContent.slice(result.start, result.end) ?? ""
     
     
     analysisObject.context = relevantParagraphs
@@ -474,7 +505,19 @@ export const documentRouter = createTRPCRouter({
     console.log(analysisObject)
     
     
-
+    const analysisResult = await openai.chat.completions.create({
+      messages:[
+        { role: "system", content: "You are a phenomenal patent attorney. You analyze elements, examiner's reasoning and relevant text to determine whether an element is disclosed or not, and you always explain your reasoning." },
+        { role: "user", content: `element: ${analysisObject.element}` },
+        { role: "user", content: `examiner reasoning: ${analysisObject.reasoning}` },
+        { role: "user", content: `cited context: ${analysisObject.context.join()}` },
+      ],
+      model: "gpt-4",
+      temperature:0
+    })
+    const gptAnalysis = analysisResult.choices[0]?.message.content ?? "none"
+    //const parsedResponse = response.split('\n\n')
+    console.log(`gpt analysis:\n ${gptAnalysis}`)
 
     return {200: "nice"}
     
