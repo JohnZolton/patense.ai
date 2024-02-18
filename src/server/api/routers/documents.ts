@@ -375,18 +375,46 @@ export const documentRouter = createTRPCRouter({
       const splitElementsPromises = claims.map(async (claim)=>{
         const reasoning = await splitElementsFromRejection(claim)
         const title = extractReferenceName(claim) ?? "None"
-        const analyses = reasoning.map((element)=>{
+        const analyses: analysisObject[] = []
+        let currentAnalysis:analysisObject |null = null;
+
+        for (const element of reasoning){
           const citeLocations = extractNumbersFromBrackets(element);
-          const context = getRelevantParagraphs(title, citeLocations);
-          const result = {
-            reasoning: element,
-            citations: citeLocations,
-            context: context,
-            reference: title,
+          if (citeLocations.length >0){
+            const context = await getRelevantParagraphs(title, citeLocations)
+            
+            if (currentAnalysis === null){
+              currentAnalysis = {
+                reasoning: element,
+                citations: citeLocations,
+                context: context,
+                reference: title,
+              }
+            } else {
+              currentAnalysis.reasoning += element
+              currentAnalysis.citations = citeLocations
+              currentAnalysis.context = context
+              currentAnalysis.reference = title
+            }
+
+            analyses.push(currentAnalysis)
+            currentAnalysis = null
+          } else {
+            if (currentAnalysis === null){
+              currentAnalysis = {
+                reasoning: element,
+                citations: [],
+                context: [],
+                reference: title,
+              }
+            } else {
+              currentAnalysis.reasoning += element
+            }
           }
-          return result
-          
-        })
+        }
+        if (currentAnalysis !== null){
+          analyses.push(currentAnalysis)
+        }
         return analyses
       })
       return Promise.all(splitElementsPromises)
@@ -479,9 +507,10 @@ export const documentRouter = createTRPCRouter({
       }
       return foundParagraph
     }
+    
     function getRelevantParagraphs(title: string, cites: string[]){
       const reference = paragraphIndexes.find((paragraph)=>paragraph.author===title)
-      if (reference===undefined || reference.paragraphs===null){return }
+      if (reference===undefined || reference.paragraphs===null){return ["error"]}
       const relevantParagraphs = cites.map((cite)=>{
         return findNearestParagraphs(cite, reference!.paragraphs!)
       })
@@ -489,9 +518,10 @@ export const documentRouter = createTRPCRouter({
       // get slices of references here, pack into string[]
       const realRef = refDocs.find((doc)=>doc.metadata.author === title)
       const portions = relevantParagraphs.map((cite)=>{
-        if (cite===undefined || realRef === undefined){return []}
+        if (cite===undefined || realRef === undefined){return "error"}
         return realRef.pageContent.slice(cite.start, cite.end)
-      })
+      }) 
+      if (portions.length ===0 || portions === undefined){return ["error"]}
       return portions
     }
     
