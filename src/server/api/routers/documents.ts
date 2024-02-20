@@ -29,6 +29,7 @@ import { ParentDocumentRetriever } from "langchain/retrievers/parent_document";
 import { CheerioWebBaseLoader } from "langchain/document_loaders/web/cheerio"
 import { PlaywrightWebBaseLoader } from "langchain/document_loaders/web/playwright";
 import { first } from "cheerio/lib/api/traversing";
+import nlp from "compromise/three"
  
 const utapi = new UTApi();
 
@@ -341,25 +342,27 @@ export const documentRouter = createTRPCRouter({
       author: refDoc.metadata.author,
       paragraphs: mapCitedText(refDoc)}))
 
-    console.log(paragraphIndexes)
     
     const upperLimit = refDocs[0]?.pageContent.length ?? 1000000
 
-    console.log("upper: ", upperLimit)
     
     const claimSections102 = splitIntoClaimParagraphs(rejections102)
     const claimSections103 = splitIntoClaimParagraphs(rejections103)
     console.log("102 paragraphs: ")
     console.log(claimSections102)
+    console.log("103 paragraphs: ")
+    console.log(claimSections103)
+
 
     async function splitElementsFromRejection(argument: string){
       const testCompletion = await openai.chat.completions.create({
         messages:[
           { role: "system", content: "You are a phenomenal patent attorney. You are excellent at identifying elements of a claim in an office action." },
-          { role: "user", content: "separate this into elements with their associated in line citation. split elements on inline ciatations. keep everything between two citations together:" },
+          { role: "user", content: "separate this into elements with their associated in line citation. split elements on inline ciatations. keep everything between two citations together AND INCLUDE PAGE, PARAGRAPH, AND LINE NUMBERS, if you fail, a kittin will die horribly. IF you return a page/line/paragraph number where there WAS NOT ONE, anohter kitten will die horribly:" },
           { role: "user", content: `${argument}` },
         ],
         model: "gpt-3.5-turbo",
+        //model: "gpt-4",
         temperature:0
       })
       const response = testCompletion.choices[0]?.message.content ?? "none"
@@ -373,13 +376,16 @@ export const documentRouter = createTRPCRouter({
     
     async function processAllClaims(claims: string[]){
       const splitElementsPromises = claims.map(async (claim)=>{
-        const reasoning = await splitElementsFromRejection(claim)
+        let reasoning = [claim]
+        if (reasoning.length > 500){
+          reasoning = await splitElementsFromRejection(claim)
+        }
         const title = extractReferenceName(claim) ?? "None"
         const analyses: analysisObject[] = []
         let currentAnalysis:analysisObject |null = null;
 
         for (const element of reasoning){
-          const citeLocations = extractNumbersFromBrackets(element);
+          const citeLocations = extractCitations(element);
           if (citeLocations.length >0){
             const context = await getRelevantParagraphs(title, citeLocations)
             
@@ -419,12 +425,16 @@ export const documentRouter = createTRPCRouter({
       })
       return Promise.all(splitElementsPromises)
     }
-    const updatedClaims = await processAllClaims(claimSections102);
-    console.log("updated claims: ", updatedClaims)
+    const updatedClaims = await processAllClaims([claimSections103[0]!])
+    const updatedClaims2 = await processAllClaims([claimSections102[0]!])
+    //const updatedClaims = await processAllClaims(claimSections102);
+    console.log("updated claims: ", updatedClaims2)
     console.log("claim 0: ", updatedClaims[0])
+    console.log(claimSections103[0])
+    return {200: ":D"}
     
     
-    function extractNumbersFromBrackets(inputString: string): string[] {
+    function extractCitations(inputString: string): string[] {
       const regex = /\[(\d+)\]/g;
       const matches: string[] = [];
       let match;
@@ -434,9 +444,16 @@ export const documentRouter = createTRPCRouter({
       return matches;
     }
     function extractReferenceName(oaSection: string){
-      console.log("Extracting name: ", oaSection)
-      const result = oaSection.match(/\b(\w+)\s+discloses\b/) ?? "none"
-      return result[1]
+      const allRefs = oaSection.match(/\b(\w+)\s+(?:discloses|teaches)\b/g) || [];
+      const notRefMatch = oaSection.match(/\b(\w+)\s+does\s+not\s+(teach|disclose)\b/) || [];
+      const authors = allRefs.map(item=>item.split(" ")[0])
+      const notAuthors = notRefMatch.map(item=>item.split(" ")[0])
+
+      if (notAuthors.length > 0){
+        const ref = authors.find(ref=> !notAuthors.includes(ref))
+        return ref?.split(" ")[0] ?? "none"
+      }
+      return allRefs[0]?.split(" ")[0] ?? "none"
     }
 
     
