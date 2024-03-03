@@ -42,6 +42,7 @@
     "lucide-react": "^0.303.0",
     "micro": "^10.0.1",
     "micro-cors": "^0.1.1",
+    "natural": "^6.10.5",
     "next": "^13.2.4",
     "next-auth": "4.20.1",
     "nextjs": "^0.0.3",

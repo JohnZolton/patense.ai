@@ -72,6 +72,12 @@ const AdminPanel: NextPage = () => {
   function handleBotButton(){
     testBotButton()
   }
+  function handleDeepSearch(){
+    const userInput = "a device for killing plants with electricity"
+    const reportId = "09aa0fd4-63e1-4a01-a5fa-5d948dc581d4"
+    runDeepSearch({userInput, reportId})
+  }
+  const { mutate: runDeepSearch } = api.DocumentRouter.testDeepSearch.useMutation()
   function handleVecDBButton(){
     testVectorDB()
   }
@@ -102,7 +108,8 @@ const AdminPanel: NextPage = () => {
           <Button disabled onClick={runTestReport}>Run Test Report</Button>
           <Button disabled onClick={runLongTestReport}>Run Long Test Report</Button>
           <Button disabled onClick={handleVecDBButton}>Test Vector DB</Button>
-          <Button onClick={handleBotButton}>Test Bot</Button>
+          <Button disabled onClick={handleBotButton}>Test Bot</Button>
+          <Button  onClick={handleDeepSearch}>Test Deep Search</Button>
           </div>
           </SignedIn>
           <SignedOut>

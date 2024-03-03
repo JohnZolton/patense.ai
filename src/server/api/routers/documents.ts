@@ -30,6 +30,9 @@ import { CheerioWebBaseLoader } from "langchain/document_loaders/web/cheerio"
 import { PlaywrightWebBaseLoader } from "langchain/document_loaders/web/playwright";
 import { first } from "cheerio/lib/api/traversing";
 import nlp from "compromise/three"
+import { userInfo } from "os";
+import natural, { LancasterStemmer, PorterStemmer, SentimentAnalyzer, WordTokenizer } from "natural"
+
  
 const utapi = new UTApi();
 
@@ -262,6 +265,103 @@ export const documentRouter = createTRPCRouter({
     return reports
   }),
   
+  testDeepSearch: privateProcedure.input(
+    z.object({
+      userInput: z.string(),
+      reportId: z.string(),
+    })
+  ).mutation(async ({ctx, input})=>{
+    // get Reference Documents
+    const userId = ctx.userId
+    const userMessage = input.userInput
+
+    const report = await ctx.prisma.oAReport.findFirst({
+      where: {
+        id: input.reportId,
+      },
+      orderBy:[{date:"desc"}],
+      include:{
+        features: true,
+        files: true
+      }
+    })
+    if (!report){
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message:"No reports found with that user"
+})
+    }
+    const refDocs:Document[][] = [];
+
+    await Promise.all(report.files.map(async (file)=>{
+      const doc = await fetch(`https://utfs.io/f/${file.key}`)
+      const dobBlob = await doc.blob()
+      const docloader = new PDFLoader(dobBlob)
+      const loadeddoc = await docloader.load()
+      const upperLimit = 2000
+      const newDocs = loadeddoc.flatMap((page, number)=>{
+        if (page.pageContent.length>upperLimit){
+          const part1 = page.pageContent.substring(0,page.pageContent.length/2)
+          const part2 = page.pageContent.substring(page.pageContent.length/2)
+          const newDoc1 = new Document({
+            pageContent:part1,
+            metadata: {"title": file.title, "userId": ctx.userId ?? "none", page: number+1}
+          })
+          const newDoc2 = new Document({
+            pageContent:part2,
+            metadata: {"title": file.title, "userId": ctx.userId ?? "none", page: number+1}
+          })
+          return [newDoc1, newDoc2]
+        } else {
+          const newDoc = new Document({
+            pageContent: page?.pageContent ?? "", 
+            metadata:{"title": file.title, "userId": ctx.userId ?? "none", page: number+1}
+          })
+          return [newDoc]
+        }
+      })
+      refDocs.push(newDocs)
+    }))
+
+    const openai = new OpenAI()
+
+    async function analyzeTextForFeature(input: string, context:Document){
+      const analysisResult = await openai.chat.completions.create({
+        messages:[
+          { role: "system", content: "You are a phenomenal patent attorney. You analyze elements, examiner's reasoning and relevant text to determine whether an element is disclosed or not, and you always explain your reasoning." },
+          { role: "user", content: `Does the reference disclose or suggest: ${input}` },
+          { role: "user", content: `Reference: ${context.pageContent}` },
+          { role: "user", content: `begin with either "probably does" or "probably not"` },
+        ],
+        model: "gpt-3.5-turbo",
+        temperature:0
+      })
+      console.log(context.pageContent)
+      console.log(analysisResult.choices[0])
+      const gptAnalysis = analysisResult.choices[0]?.message.content ?? "none"
+      const regex = /(probably not)/gi
+      const ans = gptAnalysis.match(regex)
+      console.log(ans)
+      if (ans && ans.length>0){
+        return {analysis: gptAnalysis, page: context, anticipated:false}
+      } else {
+        return {analysis: gptAnalysis, page: context, anticipated: true}
+      }
+    }
+    function searchAllDocs(input: string){
+      console.log("todo")  
+      
+    }
+    //const testText = refDocs[0]?.[3] ?? new Document({pageContent:""})
+    const testText = refDocs.flat().find((ref)=>ref.metadata.title==="WO2005") ?? new Document({pageContent:""})
+    const result = await analyzeTextForFeature("using a camera to detect weeds",testText)
+    const result2 = await analyzeTextForFeature("killing weeds with a tazer",testText)
+    console.log(result)
+    console.log(result2)
+    
+    
+  }),
+  
   testPatentBot: privateProcedure.mutation(async ({ ctx })=>{
     const officeActionInfo = {
       title: 'office_action.pdf',
@@ -273,13 +373,119 @@ export const documentRouter = createTRPCRouter({
       {title: "WO2005047819", key: "fa04cb84-0404-47b1-b5a2-3b6dfe4d2a75-slu8o5.pdf", author: "Hulin", url: "https://patents.google.com/patent/WO2005047819A1/en?oq=WO2005047819A"}
     ]
     
-
     const openai = new OpenAI()
+
+    const dummyData = `
+    Regarding Claim 1, Cui teaches a system, comprising: ... ((Fig. 7 and ¶  0068 teach system 700 includes a processor 702)
+    ... ([¶ 0043] iframe blah blah...),
+    in response to blah ... ([¶ 0055], ... service data. [¶ 0057] the ... files [i.e., generated customized rendering code] to be ...).
     
+    Regarding Claim 2, Cui teaches the system recited in claim 1, wherein ... (Fig. 2, ¶ 0030 teach domain address 204 [i.e., first URL]).
+    5. As to claim 1, DiUbaldi et al. discloses a stimulating device comprising: a controller (microprocessor or microcontroller; e.g., paragraphs 30 and 102; depicted as 608 in Figure 17); a substrate (circuitized substrate or circuit board, depicted as 102 in Figures 3-5, 8A and 9A-10) being ... signals (e.g., paragraphs 56, 60 and 63); and ... a body (e.g., paragraphs 23-24, 60, 63 and 74; also see Figure 5). 
+    Regarding claim 1 and 5, 6, 7, 11 Hartel teaches a method to increase the production of oil (lipids) in plants using a modified trehalose 6-phosphate synthase (TPS) homologs (abstract). Hartel teaches this is accomplished via gene expression manipulation (genetic modification) ([0003]). Hartel teaches that alga can be used in their invention ([0294]). 
+    Albstein dislcoses a system of weed eaters, page 4 line 10.
+    Shackleton teaches a plurality of cars, (page 10, paragraph 4).
+    `;
+    
+    const testAnswer = `1. Cui, Fig. 7 and ¶ 0068
+2. Cui, page 1, ¶ 0043
+3. Cui, ¶ 0055 and ¶ 0057
+3. Cui, ¶ 0055 and 0057 lines 10-12
+4. Cui, Fig. 2 and ¶ 0030
+5. DiUbaldi et al., paragraphs 30 and 102, Figures 3-5, 8A, 9A-10, and 17
+6. DiUbaldi et al., paragraphs 56, 60 and 63
+7. DiUbaldi et al., paragraphs 23-25, 60, 63 and 74, Figure 5
+8. Hartel, Abstract
+9. Hartel, ¶ 0003
+10. Hartel, ¶ 0294
+11. Albstein, page 4, line 10
+12. Shackleton, page 10, 11, and 12, paragraph 4
+12. Shackleton, page 10, paragraph 4`
+
+    async function parseExerptWithGPT4(text:string){
+      const result = await openai.chat.completions.create({
+        messages:[
+          { role: "system", content: "You are a phenomenal patent analyst. You identify references by Name, page number and paragraph number or line number." },
+          { role: "user", content: `exerpt: ${text}` },
+        ],
+        model: "gpt-4",
+        temperature:0
+      })
+      const message = result.choices[0]?.message.content ?? "none"
+      return message
+    }
+
+    interface fullCite {
+      author: string,
+      page?: string[],
+      paragraphs?: string[],
+      lines?: string[]
+    }
+    function extractCitationsFromGPT(rawline:string){
+      const author = extractRefName(rawline)
+      const page = extractPageNumber(rawline)
+      const paragraphs = extractParagraphNumber(rawline)
+      const lines = extractLineNumber(rawline)
+      const result: fullCite = {
+        author,
+        page, 
+        paragraphs, 
+        lines
+      }
+      return result
+    }
+    
+    function numbersOnly(line:RegExpMatchArray | null){
+      const numberRegex = /\b\d+\b/g;
+      const input = line?.join() ?? "error"
+      const numbers = input.match(numberRegex)
+      const rangeRegex = /\b\d+(?:-\d+)?\b/g;
+      const rangeNumbers = line?.[0].match(rangeRegex);
+
+      //make a set of all numbers
+      const numbersSet = new Set<string>()
+      numbers?.map((number)=>numbersSet.add(number))
+      if (rangeNumbers){
+        const items = rangeNumbers[0]?.split('-')
+        const lower = parseInt(items[0] ?? "0")
+        const upper = parseInt(items[1]??"0")
+        for (let i=lower;i<upper;i++){
+          numbersSet.add(i.toString())
+        }
+      }
+      const sortedNumbers = Array.from(numbersSet).sort((a, b) => parseInt(a) - parseInt(b));
+      return sortedNumbers
+    }
+    function extractLineNumber(line: string){
+      const lineRegex = /(?<=((l|L)ines?) )(\d+(?:-\d+)?(?: and \d+(?:-\d+)?)*)[^]*?(?=(?:lines?|figures?|\n?))/g
+      const lineNumber = line.match(lineRegex)
+      const numbers = numbersOnly(lineNumber)
+      return numbers ? numbers: []
+    }
+    function extractParagraphNumber(line: string){
+      const paragraphRegex = /(?<=((p|P)aragraphs?|¶|para.?) ?)((\d+)+((,?-? ?\d+)?)*(,? and \d+)?)(?=(?:lines?|(f|F)igures?|\n?))/gi
+      const paragraphNumber = line.match(paragraphRegex)
+      const numbers = numbersOnly(paragraphNumber)
+      return numbers ? numbers: []
+    }
+    function extractPageNumber(line: string){
+      const pageRegex = /(?<=page )[^\n]+(?= (para.?|paragraphs?|¶|lines?|figure))/gs;
+      const pageNumbers = line.match(pageRegex)
+      const numbers = numbersOnly(pageNumbers)
+      return numbers ? numbers: []
+    }
+    function extractRefName(line: string){
+      const refNameRegex = /^[0-9]+\. (\w+(?:\s\w+)?)/;
+      const reefNameMatch = line.match(refNameRegex)
+      const refName = reefNameMatch ? reefNameMatch[1] : "error"
+      return refName ? refName.split(' ')[0]! : "error"
+    }
+
     interface analysisObject {
       element?: string,
       reasoning: string,
-      citations: string[],
+      citations: Citation[],
+      citationType?:string,
       reference?: string,
       context?: string[],
       conclusion?: string,
@@ -295,7 +501,6 @@ export const documentRouter = createTRPCRouter({
     const oaLoader = new PDFLoader(oaBlob, {splitPages: false})
     const oaText = await oaLoader.load()
     const officeAction = new Document({pageContent:oaText[0]?.pageContent ?? "", metadata:{"title": officeActionInfo.title, "userId": ctx.userId ?? "none"}})
-    //console.log(officeAction.pageContent)
     
     const pattern102 = /Claim Rejections - 35 USC § 102[\s\S]*?(?=Claim Rejections - 35 USC § 103|$)/g;
     const pattern103 = /Claim Rejections - 35 USC § 103[\s\S]*?(?=Conclusion|Claim Rejections|$)/g;
@@ -312,16 +517,24 @@ export const documentRouter = createTRPCRouter({
     const rejections102: string[] = extractClaimRejections(officeAction.pageContent, pattern102)
     const rejections103: string[] = extractClaimRejections(officeAction.pageContent, pattern103)
     
-    const refDocs:Document[] = []
+
+    
+    const refDocs:Document[][] = [];
     
     await Promise.all(referencesDoc.map(async (file)=>{
       const doc = await fetch(`https://utfs.io/f/${file.key}`)
       const dobBlob = await doc.blob()
-      const docloader = new PDFLoader(dobBlob, {splitPages: false})
+      const docloader = new PDFLoader(dobBlob )
       const loadeddoc = await docloader.load()
-      const newDoc = new Document({pageContent:loadeddoc[0]?.pageContent ?? "", metadata:{"title": file.title, "userId": ctx.userId ?? "none", author: file.author}})
-      refDocs.push(newDoc)
+      const newDocs = loadeddoc.map((page, number)=>{
+        const newDoc = new Document({
+          pageContent:page?.pageContent ?? "", 
+          metadata:{"title": file.title, "userId": ctx.userId ?? "none", author: file.author, page: number+1}})
+        return newDoc
+      })
+      refDocs.push(newDocs)
     }))
+
     function splitIntoClaimParagraphs(rejectionSections: string[]): string[] {
       const claimParagraphs: string[] = [];
       const pattern = /In regards to claim \d+([\s\S]*?)(?=(?:In regards to claim \d+)|$)/g;
@@ -338,12 +551,6 @@ export const documentRouter = createTRPCRouter({
       return claimParagraphs;
     }
     
-    const paragraphIndexes = refDocs.map((refDoc)=>({
-      author: refDoc.metadata.author,
-      paragraphs: mapCitedText(refDoc)}))
-
-    
-    const upperLimit = refDocs[0]?.pageContent.length ?? 1000000
 
     
     const claimSections102 = splitIntoClaimParagraphs(rejections102)
@@ -353,6 +560,17 @@ export const documentRouter = createTRPCRouter({
     console.log("103 paragraphs: ")
     console.log(claimSections103)
 
+    console.log(claimSections102[0])
+    const testResult = await parseExerptWithGPT4(claimSections102[0]!)
+    console.log(testResult)
+    /*
+    const testResult = claimSections102.map(async (claim)=>{
+      const item = await parseExerptWithGPT4(claim)
+      console.log("claim: ", claim)
+      console.log("GPT: ", item)
+    })
+    */
+    return {200: ":D"}
 
     async function splitElementsFromRejection(argument: string){
       const testCompletion = await openai.chat.completions.create({
@@ -374,6 +592,27 @@ export const documentRouter = createTRPCRouter({
       return filteredParts
     }
     
+    interface Citation {
+      type: 'paragraph' | 'page+line';
+      reference: string;
+    }
+
+    function extractCitationType(claim: string){
+      const paragraphCitationRegex = /(?:\bpara\.\s?\[\d+\])/gi;
+      const pageLineCitationRegex = /(?:\bpage\s?\d+\s?\,\s?lines\s?\d+\-\d+)/gi;
+  
+      const citations: Citation[] = [];
+      let match;
+      while ((match=paragraphCitationRegex.exec(claim))!==null){
+        citations.push({type:"paragraph", reference: match[0]})
+      }
+      while ((match=pageLineCitationRegex.exec(claim))!==null){
+        citations.push({type:"page+line", reference: match[0]})
+      }
+      console.log("cytaitons: ", citations)
+      return citations
+    }
+    
     async function processAllClaims(claims: string[]){
       const splitElementsPromises = claims.map(async (claim)=>{
         let reasoning = [claim]
@@ -381,24 +620,24 @@ export const documentRouter = createTRPCRouter({
           reasoning = await splitElementsFromRejection(claim)
         }
         const title = extractReferenceName(claim) ?? "None"
+        const citationType = extractCitationType(claim)
         const analyses: analysisObject[] = []
         let currentAnalysis:analysisObject |null = null;
 
         for (const element of reasoning){
-          const citeLocations = extractCitations(element);
-          if (citeLocations.length >0){
-            const context = await getRelevantParagraphs(title, citeLocations)
+          if (citationType.length >0){
+            const context = getRelevantContext(title, citationType)
             
             if (currentAnalysis === null){
               currentAnalysis = {
                 reasoning: element,
-                citations: citeLocations,
+                citations: citationType,
                 context: context,
                 reference: title,
               }
             } else {
               currentAnalysis.reasoning += element
-              currentAnalysis.citations = citeLocations
+              currentAnalysis.citations = citationType
               currentAnalysis.context = context
               currentAnalysis.reference = title
             }
@@ -428,10 +667,10 @@ export const documentRouter = createTRPCRouter({
     const updatedClaims = await processAllClaims([claimSections103[0]!])
     const updatedClaims2 = await processAllClaims([claimSections102[0]!])
     //const updatedClaims = await processAllClaims(claimSections102);
-    console.log("updated claims: ", updatedClaims2)
+    console.log("updated claims: ", updatedClaims2[0])
     console.log("claim 0: ", updatedClaims[0])
     console.log(claimSections103[0])
-    return {200: ":D"}
+    
     
     
     function extractCitations(inputString: string): string[] {
@@ -495,26 +734,32 @@ export const documentRouter = createTRPCRouter({
       return matchedIndex
     }
     
-    function findNearestParagraphs(cite:string, paragraphIndexes: paragraphs[] | undefined):paragraphs|undefined{
+    function findNearestParagraphs(limit: number, cite:Citation, paragraphIndexes: paragraphs[] | undefined):paragraphs|undefined{
       if (paragraphIndexes === undefined){return}
+      let paraNumber = "";
+      const pattern = /\[(\d+)\]/;
+      const match = cite.reference.match(pattern)
+      if (match && match.length>0 &&match[1]){
+        paraNumber = match[1]
+      }
       const foundParagraph: paragraphs = {
-        token: cite,
-        number: cite,
+        token: paraNumber,
+        number:paraNumber,
         start: 0,
         end: 0
       }
-      let result = paragraphIndexes.find((paragraph)=> paragraph.number === cite)
+      let result = paragraphIndexes.find((paragraph)=> paragraph.number === paraNumber)
 
       if (result === undefined){
-        let lowNumber = parseInt(cite)
-        let highNumber = parseInt(cite)
+        let lowNumber = parseInt(paraNumber)
+        let highNumber = parseInt(paraNumber)
         while (result === undefined && lowNumber > 0){
           lowNumber -=1
           result = paragraphIndexes.find((paragraph)=> paragraph.number === lowNumber.toString())
           foundParagraph.start = result?.start ?? 0
         }
         result = undefined
-        while (result === undefined && (highNumber < upperLimit) ){
+        while (result === undefined && (highNumber < limit) ){
           highNumber +=1
           result = paragraphIndexes.find((paragraph)=> paragraph.number === highNumber.toString())
           foundParagraph.end = result?.end ?? 0
@@ -524,54 +769,53 @@ export const documentRouter = createTRPCRouter({
       }
       return foundParagraph
     }
+
     
-    function getRelevantParagraphs(title: string, cites: string[]){
-      const reference = paragraphIndexes.find((paragraph)=>paragraph.author===title)
-      if (reference===undefined || reference.paragraphs===null){return ["error"]}
-      const relevantParagraphs = cites.map((cite)=>{
-        return findNearestParagraphs(cite, reference!.paragraphs!)
+    // TODO TEST THIS FUNCTION
+    function getRelevantContext(title: string, cites: Citation[]){
+      /* Goal is to only map paragraphs when there's paragraphs to cite */
+      const reference2 = refDocs.find((paragraph)=>paragraph[0]?.metadata.author===title)!
+      if (!reference2 || !reference2[0]){return}
+      const allPageContent = reference2.map((page)=>page.pageContent).join("")
+      const content = new Document({pageContent: allPageContent,
+        metadata:{
+          "title": reference2[0].metadata.title as string ?? "none", 
+          "userId": ctx.userId? ctx.userId : "none", 
+          "author": reference2[0].metadata.author as string ?? "none"
+        }})
+
+      const upperLimit = content.pageContent.length ?? 1000000
+      const relevantParagraphs:string[] = cites.map((cite)=>{
+        if (cite.type === "paragraph"){
+          const paragraphs = mapCitedText(content)
+          if (!paragraphs){return "error"}
+          const indexes = findNearestParagraphs(upperLimit, cite, paragraphs)
+          if (!indexes){return "error"}
+          return content.pageContent.slice(indexes.start, indexes.end) ?? "error"
+        }
+        if (cite.type ==="page+line"){
+          const regex = /page (\d+), lines (\d+)-(\d+)/
+          const match = cite.reference.match(regex)
+          if (match && match.length >3){
+            const pageNumber = parseInt(match[1]!)
+            const startLine = parseInt(match[2]!)
+            const endLine = parseInt(match[3]!)
+            const page = reference2.find((ref)=>ref.metadata.page === pageNumber)
+            const contentLines = page?.pageContent.split('\n')
+            const lines = contentLines?.slice(startLine-3 > 0 ? startLine-3 : startLine, endLine+4>contentLines.length? endLine+4 : endLine)           
+            if (lines?.join('/n').trim()===""){
+              return page?.pageContent ?? "error"
+            }
+            return lines?.join('/n') ?? "error"
+          }
+        }
+        return "error"
+
       })
       console.log("relevant Paragraphs: ",relevantParagraphs[0])
       // get slices of references here, pack into string[]
-      const realRef = refDocs.find((doc)=>doc.metadata.author === title)
-      const portions = relevantParagraphs.map((cite)=>{
-        if (cite===undefined || realRef === undefined){return "error"}
-        return realRef.pageContent.slice(cite.start, cite.end)
-      }) 
-      if (portions.length ===0 || portions === undefined){return ["error"]}
-      return portions
+      return relevantParagraphs
     }
-    
-    return {200:":="}
-      //const result = findNearestParagraphs(citation, paragraphIndexes!)
-      //const text = refDocs[0]?.pageContent.slice(result.start, result.end) ?? ""
-    
-    
-    analysisObject.context = relevantParagraphs
-    console.log(claimSections102[0]?.[0])
-    console.log(analysisObject)
-    
-    
-    const analysisResult = await openai.chat.completions.create({
-      messages:[
-        { role: "system", content: "You are a phenomenal patent attorney. You analyze elements, examiner's reasoning and relevant text to determine whether an element is disclosed or not, and you always explain your reasoning." },
-        { role: "user", content: `element: ${analysisObject.element}` },
-        { role: "user", content: `examiner reasoning: ${analysisObject.reasoning}` },
-        { role: "user", content: `cited context: ${analysisObject.context.join()}` },
-      ],
-      model: "gpt-4",
-      temperature:0
-    })
-    const gptAnalysis = analysisResult.choices[0]?.message.content ?? "none"
-    //const parsedResponse = response.split('\n\n')
-    console.log(`gpt analysis:\n ${gptAnalysis}`)
-
-    return {200: "nice"}
-    
-
-    
-    
-    
    }),
    
    
