@@ -75,7 +75,44 @@ model OAReport {
   specKey String
   features FeatureItem[]
   files Reference[]
+  convoId Int?
+  convo Convo? 
   @@index([userID, stripeTxId, id])
+}
+
+model Convo {
+  id       Int      @id @default(autoincrement()) @unique
+  reportId String @unique
+  report OAReport @relation(fields: [reportId], references: [id])
+  messages Message[]  
+  @@index([reportId])
+}
+
+model Message {
+  id       Int      @id @default(autoincrement())
+  date     DateTime  @default(now())
+  query String @db.MediumText()
+  convoId Int
+  convo Convo @relation(fields: [convoId], references: [id])
+  result Result[]
+  @@index([convoId])
+}
+model Result {
+  id       Int      @id @default(autoincrement())
+  anticipated Boolean
+  messageId Int
+  message Message @relation(fields: [messageId], references: [id])
+  cites Citation[]  
+  @@index([messageId])
+}
+
+model Citation {
+  id       Int      @id @default(autoincrement())
+  name String
+  page Int
+  resultId Int
+  result Result @relation(fields: [resultId], references: [id])
+  @@index([resultId])
 }
 
 model FeatureItem {

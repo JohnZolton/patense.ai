@@ -13,6 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useUploadThing } from "~/utils/uploadthing";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/router";
 
 
 
@@ -39,11 +40,11 @@ const Home: NextPage = () => {
   const [specFile, setSpecFile] = useState<UserFile>();
   const [resultData, setResultData] = useState<FeatureItem[]>([])
   const [appState, setAppState] = useState<AppState>(AppState.LOAD_DOCUMENTS);
-
-  const { mutate: makeStripeCheckout } = api.DocumentRouter.saveDocsAndSendStripe.useMutation(
+  const router = useRouter()
+  const { mutate: makeDeepSearchReport } = api.DocumentRouter.makeReportDeepSearch.useMutation(
     {
-      onSuccess: (url)=>{
-        window.location.href=url ?? '/home'
+      onSuccess: (report)=>{
+        ()=>router.push(`/reports/${report.id}`)
       }
     }
   )
@@ -68,7 +69,7 @@ const Home: NextPage = () => {
           referenceKeys.every((ref)=>((ref.key!==undefined) && (ref.title!==undefined)))
         ){
           console.log(referenceKeys)
-        const result = makeStripeCheckout({
+        const result = makeDeepSearchReport({
           spec:{
             key: specFile.key,
             title: specFile.upFile.name ?? "none"

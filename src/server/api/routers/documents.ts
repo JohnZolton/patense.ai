@@ -265,6 +265,42 @@ export const documentRouter = createTRPCRouter({
     return reports
   }),
   
+  makeReportDeepSearch: privateProcedure.input(
+    z.object({
+      spec: z.object({
+        key: z.string(),
+        title: z.string(),
+      }),
+      references: z.array(
+        z.object({
+          key: z.string(),
+          title: z.string()
+        })
+      )
+    })
+   )
+   .mutation(async ({ ctx, input})=>{
+    console.log(ctx.userId)
+    console.log("spec: ", input.spec.key)
+    console.log("references: ", input.references.length)
+    
+    const createdJob = await ctx.prisma.oAReport.create({
+      data:{
+        userID:ctx.userId,
+        specKey: input.spec.key,
+        title: input.spec.title,
+        files: {
+          create: input.references.map((reference)=>({
+            userId: ctx.userId,
+            key: reference.key,
+            title: reference.title,
+          }))
+        },
+      },
+    })
+    return createdJob
+  }),
+
   testDeepSearch: privateProcedure.input(
     z.object({
       userInput: z.string(),
@@ -282,7 +318,8 @@ export const documentRouter = createTRPCRouter({
       orderBy:[{date:"desc"}],
       include:{
         features: true,
-        files: true
+        files: true,
+        convo: true,
       }
     })
     if (!report){
@@ -305,17 +342,17 @@ export const documentRouter = createTRPCRouter({
           const part2 = page.pageContent.substring(page.pageContent.length/2)
           const newDoc1 = new Document({
             pageContent:part1,
-            metadata: {"title": file.title, "userId": ctx.userId ?? "none", page: number+1}
+            metadata: {"title": file.title, "userId": ctx.userId ?? "none", "page": number+1}
           })
           const newDoc2 = new Document({
             pageContent:part2,
-            metadata: {"title": file.title, "userId": ctx.userId ?? "none", page: number+1}
+            metadata: {"title": file.title, "userId": ctx.userId ?? "none", "page": number+1}
           })
           return [newDoc1, newDoc2]
         } else {
           const newDoc = new Document({
             pageContent: page?.pageContent ?? "", 
-            metadata:{"title": file.title, "userId": ctx.userId ?? "none", page: number+1}
+            metadata:{"title": file.title, "userId": ctx.userId ?? "none", "page": number+1}
           })
           return [newDoc]
         }
@@ -331,7 +368,7 @@ export const documentRouter = createTRPCRouter({
           { role: "system", content: "You are a phenomenal patent attorney. You analyze elements, examiner's reasoning and relevant text to determine whether an element is disclosed or not, and you always explain your reasoning." },
           { role: "user", content: `Does the reference disclose or suggest: ${input}` },
           { role: "user", content: `Reference: ${context.pageContent}` },
-          { role: "user", content: `begin with either "probably does" or "probably not"` },
+          { role: "user", content: `begin with either "probably does" or "probably not" disclose or suggest` },
         ],
         model: "gpt-3.5-turbo",
         temperature:0
@@ -339,7 +376,7 @@ export const documentRouter = createTRPCRouter({
       console.log(context.pageContent)
       console.log(analysisResult.choices[0])
       const gptAnalysis = analysisResult.choices[0]?.message.content ?? "none"
-      const regex = /(probably not)/gi
+      const regex = /(not (disclose|suggest))|(probably not)/gi
       const ans = gptAnalysis.match(regex)
       console.log(ans)
       if (ans && ans.length>0){
@@ -348,18 +385,55 @@ export const documentRouter = createTRPCRouter({
         return {analysis: gptAnalysis, page: context, anticipated: true}
       }
     }
-    function searchAllDocs(input: string){
-      console.log("todo")  
-      
+    async function searchAllDocs(input: string, docs: Document[][]){
+      const resultArray = await Promise.all(docs.flat().map(async (doc)=>{
+        return await analyzeTextForFeature(input, doc)
+      }))      
+      const relevantPages = resultArray.filter((page)=>page.anticipated===true)
+      return relevantPages
     }
-    //const testText = refDocs[0]?.[3] ?? new Document({pageContent:""})
-    const testText = refDocs.flat().find((ref)=>ref.metadata.title==="WO2005") ?? new Document({pageContent:""})
-    const result = await analyzeTextForFeature("using a camera to detect weeds",testText)
-    const result2 = await analyzeTextForFeature("killing weeds with a tazer",testText)
-    console.log(result)
-    console.log(result2)
     
+    const badPages = await searchAllDocs("killing weeds with a tazer", refDocs)
+    console.log(badPages)
     
+    const message = ctx.prisma.convo.create({
+        data:{
+          messages:{
+            create:[
+              {
+                query: userMessage,
+                result:{
+                  create:badPages.map((page)=>({
+                    anticipated: page.anticipated,
+                    cites: {
+                      create:{
+                        name: page.page.metadata.title as string,
+                        page: page.page.metadata.page as number,
+                      }
+                    }
+                  }))
+                }
+              }
+            ]
+          },
+          report: {
+            connect: {
+              id: report.id
+            }
+          }
+        },
+        include:{
+          messages: {
+            include:{
+              result: true
+            }
+          }
+        }
+      })
+      
+    console.log(message)
+    return message
+
   }),
   
   testPatentBot: privateProcedure.mutation(async ({ ctx })=>{

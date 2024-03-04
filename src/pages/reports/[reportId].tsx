@@ -44,39 +44,14 @@ const Home: NextPage = () => {
   const { mutate: getReport } = api.DocumentRouter.getReportById.useMutation({
     onSuccess: (report)=>{
         console.log(report)
-        if (report.completed){
-            setAppState(AppState.SHOW_RESULTS)
-        if (intervalRef.current){
-            clearInterval(intervalRef.current)
-        }
-        }
+        setAppState(AppState.SHOW_RESULTS)
         setReport(report)
-    },
-    onError: ()=>{
-      const newCount = errorCount+1
-      setErrorCount(newCount)
-      console.log("error count: ", errorCount)
-      if (errorCount > 1){
-        void router.push("/reports")
-      }
     }
   })
 
-  const intervalRef = useRef<NodeJS.Timer | null>(null);
   
   useEffect(() => {
       getReport({reportId: reportId})
-      intervalRef.current = setInterval(()=>{
-        getReport({reportId:reportId})
-        if (report?.completed){
-            clearInterval(intervalRef.current!)
-        }
-      }, 10000)
-      return ()=>{
-        if (intervalRef.current){
-            clearInterval(intervalRef.current)
-        }
-      }
   }, [reportId]); 
 
   
@@ -124,40 +99,11 @@ const Home: NextPage = () => {
 export default Home;
 
 function LoadDisplay(){
-  const loadingMessages = [
-    '',
-    'Processing documents...',
-    'Extracting inventive elements...',
-    'Converting references to vectors...',
-    'Searching references for inventive elements...',
-    'Preparing report...',
-    'Finishing up...'
-  ];
-  
-  const intervalDurations = [3000, 30000, 1800000, 30000, 120000, 20000]; // Set varying intervals for each loading state
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
-  useEffect(() => {
-    const intervalId = setTimeout(() => {
-      if (currentMessageIndex < loadingMessages.length -1){
-        setCurrentMessageIndex((prevIndex) => prevIndex + 1);
-      } else {
-        setCurrentMessageIndex(6)
-      }
-    }, intervalDurations[currentMessageIndex]);
-    return () => clearInterval(intervalId);
-  }, [currentMessageIndex]); 
   
   return(
     <div className="flex flex-col justify-center items-center py-3">
       <Loader2 className="justify-center items-center w-10 h-10 animate-spin"/>
-      { loadingMessages[currentMessageIndex] && (
-        <>
-      <div>{loadingMessages[currentMessageIndex]}</div>
-      <div>This takes 5-10 minutes.</div>
-        </>
-      )
-      }
     </div>
   )
 }

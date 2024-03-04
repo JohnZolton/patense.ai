@@ -74,7 +74,7 @@ const AdminPanel: NextPage = () => {
   }
   function handleDeepSearch(){
     const userInput = "a device for killing plants with electricity"
-    const reportId = "09aa0fd4-63e1-4a01-a5fa-5d948dc581d4"
+    const reportId = "2bf3da98-2aaf-425e-9c67-97629b9d72d4"
     runDeepSearch({userInput, reportId})
   }
   const { mutate: runDeepSearch } = api.DocumentRouter.testDeepSearch.useMutation()
