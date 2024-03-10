@@ -31,7 +31,7 @@ import { PlaywrightWebBaseLoader } from "langchain/document_loaders/web/playwrig
 import { first } from "cheerio/lib/api/traversing";
 import nlp from "compromise/three"
 import { userInfo } from "os";
-import natural, { LancasterStemmer, PorterStemmer, SentimentAnalyzer, WordTokenizer } from "natural"
+import Anthropic from '@anthropic-ai/sdk'
 
  
 const utapi = new UTApi();
@@ -213,7 +213,20 @@ export const documentRouter = createTRPCRouter({
       orderBy:[{date:"desc"}],
       include:{
         features: true,
-        files: true
+        files: true,
+        convo: {
+          include: {
+            messages: {
+              include: {
+                result: {
+                  include:{
+                    cites: true,
+                  }
+                }
+              }
+            }
+          }
+        },
       }
     })
     if (!report){

@@ -44,7 +44,7 @@ const Home: NextPage = () => {
   const { mutate: makeDeepSearchReport } = api.DocumentRouter.makeReportDeepSearch.useMutation(
     {
       onSuccess: (report)=>{
-        ()=>router.push(`/reports/${report.id}`)
+        router.push(`/reports/${report.id}`)
       }
     }
   )
