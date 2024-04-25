@@ -53,6 +53,7 @@
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.0.379",
     "playwright": "^1.41.2",
+    "posthog-js": "^1.129.0",
     "puppeteer": "^19.11.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

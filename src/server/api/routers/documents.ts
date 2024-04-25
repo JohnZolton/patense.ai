@@ -325,6 +325,8 @@ export const documentRouter = createTRPCRouter({
       console.log(ctx.userId);
       console.log("spec: ", input.spec.key);
       console.log("references: ", input.references.length);
+      console.log("OA: ", input.officeAction.key);
+      console.log("claims: ", input.claims.key);
 
       const createdJob = await ctx.prisma.oAReport.create({
         data: {
