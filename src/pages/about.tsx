@@ -1,6 +1,6 @@
 import { type NextPage } from "next";
 import Head from "next/head";
-import React, { useState, } from 'react';
+import React, { useState } from "react";
 
 import { NavBar } from "~/pages/components/navbar";
 import MaxWidthWrapper from "./components/maxwidthwrapper";
@@ -13,24 +13,22 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-
-
-
+} from "@/components/ui/tooltip";
 
 const Reports: NextPage = () => {
-  
-  function copyEmailToClipboard(){
+  function copyEmailToClipboard() {
     navigator.clipboard
-    .writeText("john@patense.ai")
-    .then(() => toast({
-      title:"Email Copied to Clipboard",
-      content:"support@patense.ai",
-      variant:"default",
-    }))
-    .catch((error) => console.error("Copy failed", error));
+      .writeText("john@patense.ai")
+      .then(() =>
+        toast({
+          title: "Email Copied to Clipboard",
+          content: "support@patense.ai",
+          variant: "default",
+        })
+      )
+      .catch((error) => console.error("Copy failed", error));
   }
-const {toast}=useToast()
+  const { toast } = useToast();
   return (
     <>
       <Head>
@@ -39,36 +37,43 @@ const {toast}=useToast()
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-        {/* grainy not applying to whole screen, this fixes */}
-        <div className="grainy">
-        <Toaster/>
+      {/* grainy not applying to whole screen, this fixes */}
+      <div className="">
+        <Toaster />
         <div className={`min-h-screen`}>
-        <NavBar />
-        <MaxWidthWrapper className="flex flex-col items-center gap-y-4">
-          <div className="text-3xl font-semibold mt-5">About Us</div>
-          <p>We are software engineers and patent attorneys that believe Large Language Models (AI) will revolutionize patent prosecution.</p>
-          <p>Our mission is to build tools that make you better. To give you greater insight and analysis so that you can be more effective counsel.</p>
-          <p>Large Language Models can crunch data at hundreds of pages per minute. We leverage that power to analyze disclosures and prior art references so that you can better respond to office actions.</p>
-          <div className="flex flex-row gap-x-4">
-          <Link className={buttonVariants({variant:"link"})} href={"/privacy"}>Privacy Policy</Link>
-        <div>
-        <TooltipProvider>
-          <Tooltip delayDuration={200}>
-            <TooltipTrigger>
-              <Button onClick={copyEmailToClipboard}>Contact Us</Button>
-            </TooltipTrigger>
-            <TooltipContent>Copy Email Address</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-          
+          <NavBar />
+          <MaxWidthWrapper className="flex flex-col items-center gap-y-4">
+            <div className="mt-5 text-3xl font-semibold">About Us</div>
+            <div className="flex flex-col items-start gap-y-3">
+              <p>We are going to solve patent prosecution with AI.</p>
+              <p>
+                We will drive the cost of obtaining a patent to the filing fees
+                and some electricity
+              </p>
+            </div>
+            <div className="flex flex-row gap-x-4">
+              <Link
+                className={buttonVariants({ variant: "link" })}
+                href={"/privacy"}
+              >
+                Privacy Policy
+              </Link>
+              <div>
+                <TooltipProvider>
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger>
+                      <Button onClick={copyEmailToClipboard}>Contact Us</Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy Email Address</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          </MaxWidthWrapper>
         </div>
-          </div>
-        </MaxWidthWrapper>
-        </div>
-        </div>
+      </div>
     </>
   );
 };
 
 export default Reports;
-

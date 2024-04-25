@@ -6,9 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider     = "mysql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
 model Example {
@@ -73,6 +73,8 @@ model OAReport {
   userID   String
   title String
   specKey String
+  oaKey String
+  claimKey String
   features FeatureItem[]
   files Reference[]
   convoId Int?
@@ -91,7 +93,7 @@ model Convo {
 model Message {
   id       Int      @id @default(autoincrement())
   date     DateTime  @default(now())
-  query String @db.MediumText()
+  query String @db.Text()
   convoId Int
   convo Convo @relation(fields: [convoId], references: [id])
   result Result[]
@@ -117,9 +119,9 @@ model Citation {
 
 model FeatureItem {
   id       Int      @id @default(autoincrement())
-  feature  String @db.MediumText()
-  analysis String @db.LongText()
-  source   String @db.MediumText()
+  feature  String @db.Text()
+  analysis String @db.Text()
+  source   String @db.Text()
   reportID String  // Foreign key relationship with the Analysis model
   oaReport OAReport @relation(fields: [reportID], references: [id])
   @@index([reportID])
@@ -149,4 +151,96 @@ model Reference {
   key String
   report    OAReport @relation(fields: [reportId], references: [id])
   @@index([reportId, userId])
+}
+
+
+
+
+// Liftr Stuff
+
+model WorkoutPlan {
+  planId      String          @id @default(cuid())
+  date        DateTime        @default(now())
+  userId      String
+  description String
+  workouts    Workout[]
+
+  @@index([userId, planId])
+}
+
+model Workout {
+  workoutId         String           @id @default(cuid())
+  date              DateTime         @default(now())
+  nominalDay        String
+  userId            String
+  description       String
+  exercises         Exercise[]
+  workoutNumber     Int?
+  planId            String?
+  isCompleted       Boolean @default(false)
+  plan              WorkoutPlan?  @relation(fields: [planId], references: [planId], onDelete: Cascade)
+  originalWorkoutId String?
+
+  @@index([userId])
+  @@index([date])
+  @@index([planId])
+  @@index([workoutId])
+}
+
+model Exercise {
+  exerciseId  String        @id @default(cuid())
+  date        DateTime      @default(now())
+  description String
+  sets        exerciseSet[]
+  exerciseOrder Int
+  muscleGroup MuscleGroup
+  workoutId String
+  feedbackRecorded Boolean @default(false)
+  pump Pump?
+  RPE RPE?
+  workout   Workout @relation(fields: [workoutId], references: [workoutId], onDelete: Cascade)
+
+  @@index([workoutId])
+}
+
+enum MuscleGroup {
+  Chest
+  Triceps
+  Back
+  Biceps
+  Shoulders
+  Abs
+  Quads
+  Glutes
+  Hamstrings
+  Calves
+}
+enum Pump {
+  low
+  medium
+  high
+}
+ enum RPE {
+  easy
+  medium
+  hard
+ }
+
+
+model exerciseSet {
+  setId      String         @id @default(cuid())
+  date       DateTime       @default(now())
+  exerciseId String
+  weight     Int?
+  targetWeight     Int?
+  reps       Int?
+  targetReps Int?
+  rir        Int?
+  setNumber  Int
+  exercise   Exercise @relation(fields: [exerciseId], references: [exerciseId], onDelete: Cascade)
+  lastSetId  String?        
+  priorSet   exerciseSet?   @relation("SetRelation", fields: [lastSetId], references: [setId], onDelete: NoAction)
+  nextSet    exerciseSet[]   @relation("SetRelation")
+
+  @@index([exerciseId, setId])
 }
