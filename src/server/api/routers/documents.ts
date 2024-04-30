@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { number, z } from "zod";
 import { Pinecone } from "@pinecone-database/pinecone";
 
 import {
@@ -28,7 +28,7 @@ import { InMemoryStore } from "langchain/storage/in_memory";
 import { ParentDocumentRetriever } from "langchain/retrievers/parent_document";
 import { CheerioWebBaseLoader } from "langchain/document_loaders/web/cheerio";
 import { PlaywrightWebBaseLoader } from "langchain/document_loaders/web/playwright";
-import { first } from "cheerio/lib/api/traversing";
+import { find, first } from "cheerio/lib/api/traversing";
 import nlp from "compromise/three";
 import { userInfo } from "os";
 import Anthropic from "@anthropic-ai/sdk";
@@ -47,7 +47,7 @@ const OUR_DOMAIN =
     ? "http://localhost:3001/"
     : "https://patense.ai/";
 
-const anthropic = new Anthropic();
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export const documentRouter = createTRPCRouter({
   deleteAllFiles: privateProcedure.mutation(async ({ ctx }) => {
@@ -347,48 +347,45 @@ export const documentRouter = createTRPCRouter({
       return createdJob;
     }),
 
-  testDeepSearch: privateProcedure
+  testAgent: privateProcedure
     .input(
       z.object({
-        userInput: z.string(),
-        reportId: z.string(),
+        specKey: z.string(),
+        claimKey: z.string(),
+        oaKey: z.string(),
+        references: z.array(
+          z.object({
+            title: z.string(),
+            key: z.string(),
+          })
+        ),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // get Reference Documents
       const userId = ctx.userId;
-      const userMessage = input.userInput;
 
-      const report = await ctx.prisma.oAReport.findFirst({
-        where: {
-          id: input.reportId,
-        },
-        orderBy: [{ date: "desc" }],
-        include: {
-          features: true,
-          files: true,
-          convo: true,
-        },
-      });
-      if (!report) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "No reports found with that user",
-        });
+      async function getDocument(key: string) {
+        const doc = await fetch(`https://utfs.io/f/${key}`);
+        const dobBlob = await doc.blob();
+        const docloader = new PDFLoader(dobBlob);
+        const document = await docloader.load();
+        return document;
       }
-      const refDocs: Document[][] = [];
 
+      // get Spec, OA, and Refs
+      const spec = await getDocument(input.specKey);
+      const claimsDoc = await getDocument(input.claimKey);
+      const officeAction = await getDocument(input.oaKey);
+      const refDocs: Document[][] = [];
+      console.log(officeAction);
       await Promise.all(
-        report.files.map(async (file) => {
-          const doc = await fetch(`https://utfs.io/f/${file.key}`);
-          const dobBlob = await doc.blob();
-          const docloader = new PDFLoader(dobBlob);
-          const loadeddoc = await docloader.load();
-          const newDocs = loadeddoc.flatMap((page, number) => {
+        input.references.map(async (reference) => {
+          const ref = await getDocument(reference.key);
+          const newDocs = ref.flatMap((page, number) => {
             const newDoc = new Document({
               pageContent: page?.pageContent ?? "",
               metadata: {
-                title: file.title,
+                title: reference.title,
                 userId: ctx.userId ?? "none",
                 page: number + 1,
               },
@@ -398,25 +395,144 @@ export const documentRouter = createTRPCRouter({
           refDocs.push(newDocs);
         })
       );
-
-      console.log(refDocs);
-
-      // get Spec, OA, and Refs
-      const doc = await fetch(`https://utfs.io/f/${report.specKey}`);
-      const dobBlob = await doc.blob();
-      const docloader = new PDFLoader(dobBlob);
-      const spec = await docloader.load();
-
-      const doc2 = await fetch(`https://utfs.io/f/${report.oaKey}`);
-      const dobBlob2 = await doc2.blob();
-      const docloader2 = new PDFLoader(dobBlob2);
-      const officeAction = await docloader2.load();
-
-      console.log(spec);
-      console.log(officeAction);
-
-      // get claims
       // search refs for claims
+
+      interface ClaimAnalysis {
+        claim: string;
+        rejection?: string;
+        references?: string[];
+      }
+
+      //verify later
+      const pattern102 =
+        /(\bClaims[^.!?]*\s?are\s?rejected\s?\sunder\s?35\s?U\.?S\.?C\.?\s?102)\s*(.*?)(?=\s*\bClaims[^.!?]*\s?are\s?rejected\s?\s?under\s?35\s?U\.?S\.?C\.?\s?10(2|3)(?:\(a\))|$)/gisu;
+      const pattern103 =
+        /(\bClaims[^.!?]*\s?are\s?rejected\s?\sunder\s?35\s?U\.?S\.?C\.?\s?103)\s*(.*?)(?=\s*\bClaims[^.!?]*\s?are\s?rejected\s?\s?under\s?35\s?U\.?S\.?C\.?\s?103(?:\(a\))|$)/gisu;
+
+      function extractClaimRejections(text: string, pattern: RegExp): string[] {
+        const claimRejections: string[] = [];
+        let match: RegExpExecArray | null;
+        while ((match = pattern.exec(text)) !== null) {
+          claimRejections.push(match[0]);
+        }
+        console.log(text);
+        console.log(claimRejections);
+        return claimRejections;
+      }
+
+      const rejections103: string[] = extractClaimRejections(
+        officeAction.map((doc) => doc.pageContent).join(" "),
+        pattern103
+      );
+      rejections103.map((rejection) => {
+        console.log("NEW REJCTION");
+        console.log(rejection);
+        console.log("\n");
+      });
+      console.log(rejections103.length);
+
+      function extractClaimNumbersFromRejection(text: string) {
+        const numberPatternFromRejection =
+          /(?<=claims? ?)(\d+(?:(?:,\s*|-| ?and ?)\d+)*)/gi;
+        const claimNumbers: number[] = [];
+        const match = numberPatternFromRejection.exec(text);
+        if (match?.[0]) {
+          const numbers = match?.[0];
+          const parts = numbers
+            .replace(/and/g, ",")
+            .replace(/\s/g, "")
+            .split(",");
+          const claimNumbers: number[] = [];
+          for (const part of parts) {
+            if (part.includes("-")) {
+              const [start, end] = part.split("-").map(Number);
+              if (start && end) {
+                for (let i = start; i <= end; i++) {
+                  claimNumbers.push(i);
+                }
+              }
+            } else {
+              claimNumbers.push(Number(part));
+            }
+          }
+          return claimNumbers;
+        }
+        return claimNumbers;
+      }
+      const numbers = extractClaimNumbersFromRejection(
+        rejections103[0] ?? "error"
+      );
+      console.log(numbers);
+
+      const allClaims = claimsDoc.map((doc) => doc.pageContent).join(" ");
+
+      const msg = await anthropic.messages.create({
+        model: "claude-3-haiku-20240307",
+        max_tokens: 4095,
+        messages: [
+          {
+            role: "user",
+            content: `split the following claims by double newline so that i can easily parse them, return only the claims: ${allClaims}`,
+          },
+        ],
+      });
+      const newClaims = msg.content[0]?.text || "failed";
+      console.log(newClaims);
+
+      const claimRegex = /\d+\.[^]*?(\n\n|$)/g;
+      const splits = newClaims.match(claimRegex);
+      //console.log(splits);
+
+      interface claimObj {
+        claimNumber: number;
+        text: string;
+      }
+      const claims: claimObj[] = [];
+
+      splits?.map((split) => findClaim(split));
+
+      function findClaim(text: string) {
+        const claimNumberPattern = /^\b\d+/gim;
+        const claimNumber = text.match(claimNumberPattern);
+        const number = Number(claimNumber?.[0]);
+        claims.push({
+          claimNumber: number,
+          text: text,
+        });
+      }
+      console.log(claims);
+      /*
+
+      async function analyzeClaim(claim: string, ref: Document[]) {
+        console.log(claim);
+        console.log(ref[0]);
+        const msg = await anthropic.messages.create({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 4095,
+          messages: [
+            {
+              role: "user",
+              content: `The following is a document cited against our patent application by the USPTO: ${ref
+                .map((doc) => doc.pageContent)
+                .join(" ")}
+              -----------------------------------------
+              
+              The following is our claim: ${claim}
+
+              ------------------------------------------
+              
+              Analyze whether the claim is anticipated or obvious by the above reference. explain your reasoning before stating your conclusion
+
+              `,
+            },
+          ],
+        });
+        return msg.content[0]?.text || "none";
+      }
+      const testResult = await analyzeClaim(splits![0], refDocs[0]!);
+      console.log(testResult);
+      */
+
       // make analysis?
       // view office action
       // split OA into sections
@@ -592,29 +708,6 @@ export const documentRouter = createTRPCRouter({
       metadata: { title: officeActionInfo.title, userId: ctx.userId ?? "none" },
     });
 
-    const pattern102 =
-      /Claim Rejections - 35 USC § 102[\s\S]*?(?=Claim Rejections - 35 USC § 103|$)/g;
-    const pattern103 =
-      /Claim Rejections - 35 USC § 103[\s\S]*?(?=Conclusion|Claim Rejections|$)/g;
-
-    function extractClaimRejections(text: string, pattern: RegExp): string[] {
-      const claimRejections: string[] = [];
-      let match: RegExpExecArray | null;
-      while ((match = pattern.exec(text)) !== null) {
-        claimRejections.push(match[0]);
-      }
-      return claimRejections;
-    }
-
-    const rejections102: string[] = extractClaimRejections(
-      officeAction.pageContent,
-      pattern102
-    );
-    const rejections103: string[] = extractClaimRejections(
-      officeAction.pageContent,
-      pattern103
-    );
-
     const refDocs: Document[][] = [];
 
     await Promise.all(
@@ -656,8 +749,8 @@ export const documentRouter = createTRPCRouter({
       return claimParagraphs;
     }
 
-    const claimSections102 = splitIntoClaimParagraphs(rejections102);
-    const claimSections103 = splitIntoClaimParagraphs(rejections103);
+    const claimSections102 = [""]; //splitIntoClaimParagraphs(rejections102);
+    const claimSections103 = [""]; //splitIntoClaimParagraphs(rejections103);
     console.log("102 paragraphs: ");
     console.log(claimSections102);
     console.log("103 paragraphs: ");

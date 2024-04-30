@@ -42,6 +42,7 @@
     "init": "^0.1.2",
     "langchain": "^0.0.213",
     "lucide-react": "^0.303.0",
+    "mammoth": "^1.7.1",
     "micro": "^10.0.1",
     "micro-cors": "^0.1.1",
     "natural": "^6.10.5",

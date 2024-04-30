@@ -142,7 +142,7 @@ const Home: NextPage = () => {
                 </Button>
               </div>
               <div className="text-center">
-                Only PDFs with recognized text are supported.
+                .pdf, .docx, .txt are supported.
               </div>
             </div>
           )}
@@ -250,10 +250,35 @@ interface SpecDisplayProps {
   label: string;
 }
 function SpecDisplay({ specification, label, setFile }: SpecDisplayProps) {
+  const { startUpload: uploadPDF } = useUploadThing("pdfUploader");
+  const { startUpload: uploadTxt } = useUploadThing("txtUploader");
+  const { startUpload: uploadDocx } = useUploadThing("docxUploader");
   const { toast } = useToast();
   useEffect(() => {
     if (specification && specification.loadstate === DocState.LOADING) {
       const handleSpecChange = async () => {
+        let startUpload;
+        let fileType;
+
+        if (specification.upFile.type === "application/pdf") {
+          startUpload = uploadPDF;
+          fileType = "pdf";
+        } else if (specification.upFile.type === "text/plain") {
+          startUpload = uploadTxt;
+          fileType = "text";
+        } else if (
+          specification.upFile.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ) {
+          startUpload = uploadDocx;
+          fileType = "docx";
+        } else {
+          return toast({
+            title: "Unsupported file type",
+            description: "Please upload a PDF, TXT, or DOCX file",
+            variant: "destructive",
+          });
+        }
         const res = await startUpload([specification.upFile]);
         if (!res) {
           return toast({
@@ -404,6 +429,27 @@ function RefereceDisplay({
   useEffect(() => {
     if (reference && reference.loadstate === DocState.LOADING) {
       const handleRefChange = async () => {
+        let startUpload;
+        let fileType;
+        if (reference.upFile.type === "application/pdf") {
+          startUpload = uploadPDF;
+          fileType = "pdf";
+        } else if (reference.upFile.type === "text/plain") {
+          startUpload = uploadTxt;
+          fileType = "text";
+        } else if (
+          reference.upFile.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ) {
+          startUpload = uploadDocx;
+          fileType = "docx";
+        } else {
+          return toast({
+            title: "Unsupported file type",
+            description: "Please upload a PDF, TXT, or DOCX file",
+            variant: "destructive",
+          });
+        }
         const res = await startUpload([reference.upFile]);
         if (!res) {
           return toast({
@@ -432,7 +478,10 @@ function RefereceDisplay({
     console.log(reference);
   }, [reference]);
 
-  const { startUpload } = useUploadThing("pdfUploader");
+  const { startUpload: uploadPDF } = useUploadThing("pdfUploader");
+  const { startUpload: uploadTxt } = useUploadThing("txtUploader");
+  const { startUpload: uploadDocx } = useUploadThing("docxUploader");
+
   const { mutate: startPolling } = api.DocumentRouter.getFile.useMutation({
     onSuccess: (file) => {
       console.log(file);
@@ -638,8 +687,13 @@ function SpecDropzone({ setSpecFile }: SpecDropzoneProps) {
   return (
     <Dropzone
       multiple={false}
+      accept={{
+        "text/plain": [".txt"],
+        "application/docx": [".docx"],
+        "application/pdf": [".pdf"],
+      }}
       onDrop={(acceptedFiles) => {
-        console.log(acceptedFiles);
+        console.log(acceptedFiles[0]?.type);
         if (acceptedFiles.length > 0 && acceptedFiles[0] !== undefined) {
           const newFile: UserFile = {
             upFile: acceptedFiles[0],
