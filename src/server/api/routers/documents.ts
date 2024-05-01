@@ -459,10 +459,11 @@ export const documentRouter = createTRPCRouter({
         }
         return claimNumbers;
       }
-      const numbers = extractClaimNumbersFromRejection(
-        rejections103[0] ?? "error"
-      );
-      console.log(numbers);
+      const allRejectedClaimGroups = rejections103.map((rejection) => ({
+        rejection: rejection,
+        claimNums: extractClaimNumbersFromRejection(rejection),
+      }));
+      console.log(allRejectedClaimGroups);
 
       const allClaims = claimsDoc.map((doc) => doc.pageContent).join(" ");
 
@@ -481,26 +482,81 @@ export const documentRouter = createTRPCRouter({
 
       const claimRegex = /\d+\.[^]*?(\n\n|$)/g;
       const splits = newClaims.match(claimRegex);
-      //console.log(splits);
+      console.log(splits);
 
       interface claimObj {
         claimNumber: number;
         text: string;
       }
-      const claims: claimObj[] = [];
 
-      splits?.map((split) => findClaim(split));
+      const claimGroups = splits?.map((split) => findClaim(split));
 
       function findClaim(text: string) {
         const claimNumberPattern = /^\b\d+/gim;
         const claimNumber = text.match(claimNumberPattern);
         const number = Number(claimNumber?.[0]);
-        claims.push({
+        const claimItem: claimObj = {
           claimNumber: number,
           text: text,
-        });
+        };
+        return claimItem;
       }
-      console.log(claims);
+      console.log(claimGroups);
+
+      // match claims to rejection
+      interface rejectioObj {
+        claims: claimObj[] | undefined;
+        rejection: string;
+        claimNums: number[];
+        citations?: string[];
+      }
+
+      const fullObjs = allRejectedClaimGroups.map((reject) => {
+        const fullReject: rejectioObj = {
+          rejection: reject.rejection,
+          claimNums: reject.claimNums,
+          claims: claimGroups?.filter((claim) =>
+            reject.claimNums.includes(claim.claimNumber)
+          ),
+        };
+        return fullReject;
+      });
+      fullObjs.map((obj) => console.log(obj));
+
+      async function extractCitationsFromRejection(obj: rejectioObj) {
+        const msg = await anthropic.messages.create({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 4095,
+          messages: [
+            {
+              role: "user",
+              content: `You are a helpful citation-extracting program.
+              ------------------------------------------
+              Office Action Rejection:${obj.rejection.slice(0, 200)}
+              ------------------------------------------
+              Extract the authors and publication number/title from the above rejection.
+              Return in the follow format: {Publication number}: {author} et al
+              Separate multiple references by double newlines
+              `,
+            },
+          ],
+        });
+        const text = msg.content[0]?.text ?? "error";
+        const items = text.split("\n\n");
+        const cites = items.map((item) => {
+          const splits = item.split(":");
+          return {
+            pubNum: splits[0],
+            author: splits[1],
+          };
+        });
+        return cites;
+      }
+
+      const testCite = await extractCitationsFromRejection(fullObjs[3]!);
+      console.log(testCite);
+
+      //claimGroups?.map((claim)=>)
       /*
 
       async function analyzeClaim(claim: string, ref: Document[]) {
